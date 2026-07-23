@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HeliosTrack Dashboard</title>
+    
+    <!-- Chart.js Library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Socket.io Client Library -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    
+    <!-- External CSS Linked Here -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- ========================================== -->
+    <!-- 1. THE SECURITY GATE (LOGIN SCREEN)        -->
+    <!-- ========================================== -->
+    <div id="login-container">
+        <h2>🔒 Secure Access</h2>
+        <p style="color: #7f8c8d; font-size: 14px; margin-bottom: 20px;">Authorized Personnel Only</p>
+        
+        <input type="email" id="emailInput" placeholder="Enter Email (e.g. vaibongo20@gmail.com)" required>
+        <input type="password" id="passwordInput" placeholder="Enter Password" required>
+        
+        <p id="loginError" style="color: #e74c3c; display: none; font-size: 14px; margin: 5px 0 0 0; font-weight: bold;">Invalid credentials!</p>
+        
+        <button id="loginBtn">Login to Dashboard</button>
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- 2. THE VAULT (MAIN DASHBOARD - HIDDEN)     -->
+    <!-- ========================================== -->
+    <!-- Notice the style="display: none;" below! -->
+    <div id="dashboard-container" class="container" style="display: none;">
+        
+        <button id="logoutBtn">Logout 🚪</button>
+        <h1>Solar Panel Generation Logs</h1>
+        
+        <!-- Alarm Banner -->
+        <div id="alarmBanner" style="display: none; background-color: #ff4c4c; color: white; padding: 15px; margin-bottom: 20px; border-radius: 5px; font-weight: bold; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            ⚠️ CRITICAL ALARM
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="filters">
+            <label style="align-self: center; font-weight: bold;">Start Date:</label>
+            <input type="date" id="startDate">
+            <label style="align-self: center; font-weight: bold;">End Date:</label>
+            <input type="date" id="endDate">
+            <button id="filterBtn">🔍 Search</button>
+            <button id="resetBtn">🔴 Live Data</button>
+            <!-- NEW: Export Button -->
+            <button id="exportBtn" style="background-color: #8e44ad;">📥 Export CSV</button>
+        </div>
+
+        <!-- NEW: Business Metrics Widgets -->
+    <div id="roi-widgets" class="widgets-container" style="display: none;">
+        <div class="widget">
+            <h3>⚡ Session Energy</h3>
+            <p id="kwhValue">0.0000 kWh</p>
+        </div>
+        <div class="widget">
+            <h3>💰 Money Saved</h3>
+            <p id="moneyValue">$0.0000</p>
+        </div>
+        <div class="widget">
+            <h3>🌳 CO2 Offset</h3>
+            <p id="co2Value">0.0000 kg</p>
+        </div>
+    </div>
+
+    <!-- NEW: Virtual Battery & Grid Status -->
+    <div id="battery-container" class="widgets-container" style="display: none; margin-top: 15px;">
+        <div class="widget" style="flex: 2; display: flex; align-items: center; justify-content: space-between;">
+            <div style="text-align: left;">
+                <h3 style="color: #27ae60;">🔋 Virtual Battery Storage</h3>
+                <p id="batteryStatusText">Charging...</p>
+            </div>
+            <div class="battery-outer">
+                <div id="battery-fill" class="battery-inner"></div>
+            </div>
+            <h2 id="batteryPercent" style="margin: 0; color: #2c3e50;">50.0%</h2>
+        </div>
+        <div id="gridStatusWidget" class="widget" style="flex: 1; border-top-color: #9b59b6;">
+            <h3>⚡ Grid Flow</h3>
+            <p id="gridStatusText" style="color: #7f8c8d; font-size: 18px;">Storing Energy</p>
+        </div>
+    </div>
+
+    <!-- NEW: Admin Controls - Device Management -->
+    <div id="admin-controls" class="widgets-container" style="display: none; margin-top: 15px; background: #f8f9fa; border: 1px dashed #bdc3c7; padding: 15px; border-radius: 8px;">
+        <div style="flex: 1; display: flex; align-items: center; justify-content: space-between;">
+            <h3 style="margin: 0; color: #2c3e50;">⚙️ Device Manager</h3>
+            <div>
+                <select id="newPanelType" style="padding: 8px; border-radius: 4px; border: 1px solid #ccc; font-size: 14px;">
+                    <option value="Monocrystalline 400W">Monocrystalline 400W</option>
+                    <option value="Polycrystalline 350W">Polycrystalline 350W</option>
+                    <option value="Thin-Film 300W">Thin-Film 300W</option>
+                </select>
+                <button id="addPanelBtn" style="background-color: #2980b9; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-left: 10px;">
+                    ➕ Add New Panel
+                </button>
+            </div>
+        </div>
+    </div>
+
+        <!-- Chart Canvas -->
+        <div style="width: 100%; height: 350px; margin-bottom: 20px;">
+            <canvas id="voltageChart"></canvas>
+        </div>
+
+        <!-- Data Table -->
+        <table>
+            <thead>
+                <tr>
+                    <th>Log ID</th>
+                    <th>Panel Type</th>
+                    <th>Voltage (V)</th>
+                    <th>Current (A)</th>
+                    <th>Power (W)</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody id="logs-body">
+                <!-- Javascript will inject data here -->
+            </tbody>
+        </table>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
