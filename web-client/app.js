@@ -1,7 +1,7 @@
 let currentBatteryPercent = 50.0;
 const BATTERY_MAX = 100; // NEW: Maximum battery percentage limit
 const BATTERY_MIN = 0;   // NEW: Minimum battery percentage limit (just to be safe)
-//const API_URL = 'http://localhost:3001/api/logs/latest';
+
 const API_URL = 'https://heliostrack-distributed-solar-monitoring.onrender.com';
 const WS_URL = 'wss://heliostrack-distributed-solar-monitoring.onrender.com';
 let voltageChart = null;
@@ -41,7 +41,8 @@ function setupAuth() {
         }
 
         try {
-            const response = await fetch('http://localhost:3001/api/login', {
+            // FIXED: Using API_URL instead of localhost
+            const response = await fetch(`${API_URL}/api/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
@@ -75,7 +76,7 @@ function showDashboard() {
     document.getElementById('dashboard-container').style.display = 'block';
     // NEW: Show Admin Controls
     document.getElementById('admin-controls').style.display = 'flex';
-    fetchLogs(API_URL); // Load initial data
+    fetchLogs(`${API_URL}/api/logs/latest`); // FIXED: Added proper endpoint for initial load
     initWebSocket();    // Start live WebSocket stream!
 }
 
@@ -92,7 +93,8 @@ function showLogin() {
 function initWebSocket() {
     if (socket) return; // Already connected
 
-    socket = io('http://localhost:3001');
+    // FIXED: Using API_URL instead of localhost
+    socket = io(API_URL);
 
     socket.on('connect', () => {
         console.log("Connected to Enterprise WebSocket Stream!");
@@ -168,18 +170,20 @@ function setupFilterButtons() {
             return;
         }
 
-        const filterUrl = `http://localhost:3001/api/logs/history?start=${start}&end=${end}`;
+        // FIXED: Using API_URL instead of localhost
+        const filterUrl = `${API_URL}/api/logs/history?start=${start}&end=${end}`;
         fetchLogs(filterUrl); 
     });
 
     document.getElementById('resetBtn').addEventListener('click', () => {
         document.getElementById('startDate').value = '';
         document.getElementById('endDate').value = '';
-        fetchLogs(API_URL); 
+        fetchLogs(`${API_URL}/api/logs/latest`); // FIXED: Using API_URL
     });
 
     document.getElementById('exportBtn').addEventListener('click', () => {
-        window.open('http://localhost:3001/api/logs/export', '_blank');
+        // FIXED: Using API_URL instead of localhost
+        window.open(`${API_URL}/api/logs/export`, '_blank');
     });
 }
 
@@ -195,7 +199,8 @@ document.getElementById('addPanelBtn').addEventListener('click', async () => {
     btn.disabled = true;
 
     try {
-        const response = await fetch('http://localhost:3001/api/panels', {
+        // FIXED: Using API_URL instead of localhost
+        const response = await fetch(`${API_URL}/api/panels`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ panel_type: panelType })
