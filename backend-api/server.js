@@ -30,7 +30,6 @@ async function sendTelegramAlert(message) {
     const token = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
 
-    // Failsafe: Do not crash the server if credentials are missing
     if (!token || !chatId) {
         console.log("Telegram credentials missing in .env, skipping alert.");
         return; 
@@ -45,7 +44,7 @@ async function sendTelegramAlert(message) {
             body: JSON.stringify({
                 chat_id: chatId,
                 text: message,
-                parse_mode: 'Markdown' // Allows us to use bold text
+                parse_mode: 'Markdown'
             })
         });
     } catch (error) {
@@ -108,9 +107,10 @@ app.post('/api/login', loginRateLimiter, async (req, res) => {
             return res.status(401).json({ success: false, message: "Invalid email or password" });
         }
 
+        // FIXED: Added fallback for JWT_SECRET
         const token = jwt.sign(
             { userId: user.id, role: user.role },
-            process.env.JWT_SECRET,
+            process.env.JWT_SECRET || 'helios_fallback_secret_key_2026',
             { expiresIn: '2h' }
         );
 
@@ -168,7 +168,7 @@ app.post('/api/logs', async (req, res) => {
             return res.status(403).json({ success: false, message: "Forbidden: Invalid API Key for this panel" });
         }
 
-        const panel_type = panels[0].panel_type; // Fetching from the query above
+        const panel_type = panels[0].panel_type; 
         let alertTriggered = false;
         let alertMessage = "";
 
@@ -177,7 +177,6 @@ app.post('/api/logs', async (req, res) => {
             alertMessage = `CRITICAL ALARM: Voltage dropped to ${voltage}V!`;
             console.log('\x1b[31m%s\x1b[0m', alertMessage); 
             
-            // TRIGGER TELEGRAM ALERT
             const telegramMsg = `🚨 *HELIOSTRACK CRITICAL ALARM*\n\n*Panel:* ${panel_type} (ID: ${panel_id})\n*Voltage:* ${voltage}V (Below safe threshold!)\n*Power:* ${power_watts}W\n*Time:* ${new Date().toLocaleTimeString()}`;
             sendTelegramAlert(telegramMsg);
 
@@ -190,7 +189,6 @@ app.post('/api/logs', async (req, res) => {
         const sql = `INSERT INTO generation_logs (panel_id, voltage, current_amps, power_watts, recorded_at) VALUES (?, ?, ?, ?, NOW())`;
         const [result] = await db.execute(sql, [panel_id, voltage, current_amps, power_watts]);
 
-        // Broadcast to Dashboard UI
         const liveLogObject = {
             log_id: result.insertId,
             panel_type: panel_type,
@@ -241,8 +239,6 @@ app.get('/api/logs/history', async (req, res) => {
 // ---------------------------------------------------------
 // PHASE 5: DYNAMIC DEVICE MANAGEMENT (CRUD)
 // ---------------------------------------------------------
-
-// 1. Get all active solar panels (Used by Simulator & Frontend)
 app.get('/api/panels', async (req, res) => {
     try {
         const sql = 'SELECT panel_id, panel_type, api_secret FROM solar_panels';
@@ -254,7 +250,6 @@ app.get('/api/panels', async (req, res) => {
     }
 });
 
-// 2. Add a new solar panel dynamically
 app.post('/api/panels', async (req, res) => {
     try {
         const { panel_type } = req.body;
@@ -263,7 +258,6 @@ app.post('/api/panels', async (req, res) => {
             return res.status(400).json({ success: false, message: "Panel type is required" });
         }
 
-        // Generate a random secure API Key for the new IoT device
         const newApiSecret = 'helios_key_' + Math.random().toString(36).substr(2, 10);
         
         const sql = 'INSERT INTO solar_panels (panel_type, api_secret) VALUES (?, ?)';
@@ -306,12 +300,14 @@ app.get('/api/logs/export', async (req, res) => {
     }
 });
 
-// Start server and fork background IoT simulator
+// ---------------------------------------------------------
+// SERVER STARTUP & SIMULATOR FORK
+// ---------------------------------------------------------
 function startServer() {
     server.listen(PORT, () => {
-    console.log(`HeliosTrack Backend API & WebSocket Server running on port ${PORT}`);
+        console.log(`HeliosTrack Backend API & WebSocket Server running on port ${PORT}`);
 
-    if (process.env.NODE_ENV !== 'production') {
+        // FIXED: Removed the NODE_ENV check so Simulator runs on Render
         const simulatorPath = path.join(__dirname, 'simulator.js');
         const simulatorProcess = fork(simulatorPath);
 
@@ -320,8 +316,7 @@ function startServer() {
         simulatorProcess.on('exit', (code) => {
             console.log(`Simulator exited with code ${code}`);
         });
-    }
-});
+    });
 }
 
 startServer();
