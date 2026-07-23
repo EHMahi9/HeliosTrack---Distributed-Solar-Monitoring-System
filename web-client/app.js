@@ -1,3 +1,6 @@
+let currentBatteryPercent = 50.0;
+const BATTERY_MAX = 100; // NEW: Maximum battery percentage limit
+const BATTERY_MIN = 0;   // NEW: Minimum battery percentage limit (just to be safe)
 const API_URL = 'http://localhost:3001/api/logs/latest';
 let voltageChart = null;
 let socket = null; // Socket.io instance

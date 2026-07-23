@@ -1,10 +1,17 @@
 const mysql = require('mysql2/promise');
+const dotenv = require('dotenv');
+
+dotenv.config();
 
 const pool = mysql.createPool({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
+    database: process.env.DB_NAME, // Make sure this is 'defaultdb' in your .env
+    port: process.env.DB_PORT || 3306,
+    ssl: {
+        rejectUnauthorized: false // This bypasses strict custom certificate checks while keeping the connection encrypted
+    },
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
