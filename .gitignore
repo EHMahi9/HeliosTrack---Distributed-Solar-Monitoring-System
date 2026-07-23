@@ -1,3 +1,5 @@
 node_modules/
 backend-api/.env
 dist/
+backend-api/node_modules/
+backend-api/dist/

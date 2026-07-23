@@ -306,18 +306,22 @@ app.get('/api/logs/export', async (req, res) => {
     }
 });
 
+// Start server and fork background IoT simulator
 function startServer() {
     server.listen(PORT, () => {
-        console.log(`HeliosTrack Backend API & WebSocket Server running on http://localhost:${PORT}`);
-        
+    console.log(`HeliosTrack Backend API & WebSocket Server running on port ${PORT}`);
+
+    if (process.env.NODE_ENV !== 'production') {
         const simulatorPath = path.join(__dirname, 'simulator.js');
         const simulatorProcess = fork(simulatorPath);
-        console.log('\x1b[35m%s\x1b[0m', "IoT Simulator auto-started in the background.");
+
+        console.log("IoT Simulator auto-started in the background.");
 
         simulatorProcess.on('exit', (code) => {
             console.log(`Simulator exited with code ${code}`);
         });
-    });
+    }
+});
 }
 
-module.exports = { startServer };
+startServer();
