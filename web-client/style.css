@@ -1,280 +1,307 @@
-/* style.css */
-
-body { 
-    font-family: Arial, sans-serif; 
-    background-color: #f4f7f6; 
-    margin: 0; 
-    padding: 20px; 
+/* ==========================================
+   🌟 1. GLOBAL STYLES & RESET
+   ========================================== */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
 }
 
-.container { 
-    max-width: 900px; 
-    margin: auto; 
-    background: white; 
-    padding: 30px; 
-    border-radius: 8px; 
-    box-shadow: 0px 4px 10px rgba(0,0,0,0.1); 
+body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background-color: #f4f7f6;
+    padding: 20px;
+    color: #333;
 }
 
-h1 { 
-    text-align: center; 
-    color: #333; 
+h1 {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 20px;
 }
 
-/* Security Login UI Styles */
-#login-container { 
-    max-width: 400px; 
-    margin: 80px auto; 
-    padding: 40px; 
-    text-align: center; 
-    border-radius: 10px; 
-    background: #fff; 
-    box-shadow: 0 8px 20px rgba(0,0,0,0.15); 
-    border-top: 5px solid #2980b9; 
+/* Base Container */
+.container, 
+#dashboard-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    background: #ffffff;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0px 8px 25px rgba(0, 0, 0, 0.08);
 }
 
-#login-container h2 { 
-    margin-top: 0; 
-    color: #2c3e50; 
+/* ==========================================
+   🔐 2. AUTHENTICATION (LOGIN UI)
+   ========================================== */
+#login-container {
+    max-width: 400px;
+    margin: 80px auto;
+    padding: 40px;
+    text-align: center;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    border-top: 5px solid #2980b9;
 }
 
-#login-container input { 
-    width: 100%; 
-    padding: 12px; 
-    margin: 10px 0; 
-    border: 1px solid #ccc; 
-    border-radius: 5px; 
-    box-sizing: border-box; 
-    font-size: 14px; 
+#login-container h2 {
+    margin-bottom: 20px;
+    color: #2c3e50;
 }
 
-#login-container button { 
-    width: 100%; 
-    padding: 12px; 
-    background: #2980b9; 
-    color: white; 
-    border: none; 
-    border-radius: 5px; 
-    cursor: pointer; 
-    font-size: 16px; 
-    font-weight: bold; 
-    margin-top: 10px; 
+#login-container input {
+    width: 100%;
+    padding: 14px;
+    margin: 10px 0;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 15px;
+    transition: border-color 0.3s;
 }
 
-#login-container button:hover { 
-    background: #1a5276; 
+#login-container input:focus {
+    border-color: #2980b9;
+    outline: none;
 }
 
-#logoutBtn { 
-    float: right; 
-    background: #e74c3c; 
-    color: white; 
-    border: none; 
-    padding: 8px 15px; 
-    border-radius: 5px; 
-    cursor: pointer; 
-    font-weight: bold; 
-    margin-top: -10px; 
+#login-container button {
+    width: 100%;
+    padding: 14px;
+    background: #2980b9;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    margin-top: 15px;
+    transition: background 0.3s;
 }
 
-/* Table and Chart Styles */
-table { 
-    width: 100%; 
-    border-collapse: collapse; 
-    margin-top: 20px; 
+#login-container button:hover {
+    background: #1a5276;
 }
 
-th, td { 
-    border: 1px solid #ddd; 
-    padding: 12px; 
-    text-align: center; 
-}
-
-th { 
-    background-color: #2c3e50; 
-    color: white; 
-}
-
-.filters { 
-    display: flex; 
-    justify-content: center; 
-    gap: 15px; 
-    margin-bottom: 25px; 
-}
-
-.filters input, .filters button { 
-    padding: 8px 12px; 
-    border: 1px solid #ccc; 
-    border-radius: 4px; 
-}
-
-.filters button { 
-    background-color: #27ae60; 
-    color: white; 
-    border: none; 
-    cursor: pointer; 
-    font-weight: bold; 
-}
-
-/* Business Metrics Widgets */
-.widgets-container {
+/* ==========================================
+   📊 3. DATA TABLES, FILTERS & CONTROLS
+   ========================================== */
+/* Controls Row (Admin & Filters) */
+.filters, 
+#admin-controls {
     display: flex;
-    justify-content: space-between;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
     gap: 15px;
     margin-bottom: 25px;
 }
 
-.widget {
-    flex: 1;
-    background: #ffffff;
-    padding: 15px;
-    border-radius: 8px;
-    text-align: center;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    border: 1px solid #e0e0e0;
-    border-top: 4px solid #f39c12; /* Orange top border */
+.filters input, 
+.filters button,
+#admin-controls select,
+#admin-controls button {
+    padding: 10px 15px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
 }
 
-.widget:nth-child(2) { border-top-color: #27ae60; } /* Green for money */
-.widget:nth-child(3) { border-top-color: #2980b9; } /* Blue for CO2 */
+.filters button, 
+#admin-controls button {
+    background-color: #27ae60;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.3s;
+}
+
+.filters button:hover, 
+#admin-controls button:hover {
+    background-color: #219150;
+}
+
+#logoutBtn {
+    float: right;
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-bottom: 20px;
+    transition: background 0.3s;
+}
+
+#logoutBtn:hover {
+    background: #c0392b;
+}
+
+/* Table Styles (DataTables compatible) */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+th, td {
+    border: 1px solid #eee;
+    padding: 14px;
+    text-align: center;
+}
+
+th {
+    background-color: #2c3e50;
+    color: white;
+    font-weight: 600;
+}
+
+/* ==========================================
+   📈 4. BUSINESS METRICS (ROI WIDGETS)
+   ========================================== */
+.widgets-container, 
+#roi-widgets,
+#battery-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 25px;
+    align-items: center;
+}
+
+.widget {
+    background: #ffffff;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    border: 1px solid #eef2f5;
+    border-top: 4px solid #f39c12; /* Default Orange */
+    transition: transform 0.2s;
+}
+
+.widget:hover {
+    transform: translateY(-5px);
+}
+
+.widget:nth-child(2) { border-top-color: #27ae60; } /* Green */
+.widget:nth-child(3) { border-top-color: #2980b9; } /* Blue */
 
 .widget h3 {
     margin: 0 0 10px 0;
-    font-size: 14px;
+    font-size: 13px;
     color: #7f8c8d;
     text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 .widget p {
     margin: 0;
-    font-size: 24px;
+    font-size: 26px;
     font-weight: bold;
     color: #2c3e50;
 }
 
-/* Virtual Battery Styles */
+/* ==========================================
+   🔋 5. VIRTUAL BATTERY
+   ========================================== */
+.battery-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+}
+
 .battery-outer {
-    width: 200px;
+    width: 100%;
+    max-width: 200px;
     height: 40px;
     border: 3px solid #2c3e50;
-    border-radius: 5px;
+    border-radius: 6px;
     position: relative;
     background: #ecf0f1;
-    margin: 0 20px;
 }
+
 .battery-outer::after {
     content: '';
     position: absolute;
-    right: -8px;
-    top: 8px;
-    width: 5px;
+    right: -9px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 6px;
     height: 18px;
     background: #2c3e50;
     border-radius: 0 3px 3px 0;
 }
+
 .battery-inner {
     height: 100%;
-    width: 50%; /* Default starting at 50% */
+    width: 50%; /* Default 50% */
     background: #27ae60;
-    border-radius: 2px;
+    border-radius: 3px;
     transition: width 0.5s ease-in-out, background-color 0.5s ease;
 }
+
 .battery-full {
-    background: #f1c40f !important; /* Turns gold when full */
+    background: #f1c40f !important;
+}
+
+/* Chart Container */
+.chart-container {
+    width: 100%;
+    margin-bottom: 30px;
+}
+
+#voltageChart {
+    width: 100% !important;
+    min-height: 400px;
 }
 
 /* ==========================================
-   📱 RESPONSIVE DESIGN (MOBILE & TABLET)
+   📱 6. RESPONSIVE DESIGN (MOBILE & TABLET)
    ========================================== */
 @media (max-width: 768px) {
-    /* 1. Login Box Fix */
+    body {
+        padding: 10px;
+    }
+
+    .container, 
+    #dashboard-container {
+        padding: 15px;
+    }
+
     #login-container {
-        width: 90% !important;
-        margin: 20px auto;
-        padding: 20px !important;
-    }
-
-    /* 2. Stack ROI Widgets (kWh, $, CO2) */
-    #roi-widgets {
-        flex-direction: column !important;
-        gap: 15px;
-    }
-    #roi-widgets > div {
-        width: 100% !important;
-        margin: 0 !important;
-    }
-
-    /* 3. Stack Battery and Grid Status */
-    #battery-container {
-        flex-direction: column !important;
-        gap: 15px;
-    }
-    #battery-container > div {
-        width: 100% !important;
-    }
-
-    /* 4. Make the Logs Table Scrollable */
-    /* মোবাইলে টেবিল ভেঙে যেন বাইরে না যায়, তাই ডানে-বামে স্ক্রল করার অপশন */
-    table {
-        display: block;
-        overflow-x: auto;
-        white-space: nowrap;
         width: 100%;
+        margin: 40px auto;
+        padding: 25px;
     }
 
-    /* 5. Admin Controls & Filters (Inputs and Buttons) */
+    /* Stack Filters and Inputs vertically */
+    .filters, 
     #admin-controls {
-        flex-direction: column !important;
-        align-items: stretch !important;
+        flex-direction: column;
+        align-items: stretch;
     }
-    #admin-controls input, 
+
+    .filters input, 
+    .filters button,
     #admin-controls select, 
     #admin-controls button {
-        width: 100% !important;
+        width: 100%;
         margin-bottom: 10px;
     }
 
-    /* 6. Chart Container Height adjustment for mobile */
+    #logoutBtn {
+        float: none;
+        width: 100%;
+        display: block;
+        margin-bottom: 20px;
+    }
+
+    /* Adjust Chart Height for smaller screens */
     #voltageChart {
         min-height: 300px;
-        width: 100% !important;
-    }
-}
-
-/* ==========================================
-   💻 DESKTOP WEB APP OPTIMIZATION (LARGE SCREENS)
-   ========================================== */
-@media (min-width: 769px) {
-    /* 1. ড্যাশবোর্ড যেন বড় মনিটরে অতিরিক্ত ছড়িয়ে না যায় */
-    body {
-        background-color: #f4f7f6; /* চোখের জন্য আরামদায়ক ব্যাকগ্রাউন্ড */
-    }
-
-    #dashboard-container, #login-container {
-        max-width: 1400px; /* সর্বোচ্চ সাইজ ফিক্স করে দেওয়া হলো */
-        margin: 40px auto; /* ড্যাশবোর্ডকে স্ক্রিনের ঠিক মাঝখানে আনবে */
-        padding: 30px;
-        background: #ffffff;
-        box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.05); /* একটি প্রিমিয়াম 3D শ্যাডো */
-        border-radius: 12px; /* চারপাশটা একটু গোল করে দেবে */
-    }
-
-    /* 2. ROI কার্ডগুলোকে (kWh, $, CO2) একদম সমান মাপে সাজানো */
-    #roi-widgets {
-        display: flex;
-        justify-content: space-between;
-        gap: 20px;
-    }
-    
-    #roi-widgets > div {
-        flex: 1; /* কার্ডগুলো সমান জায়গা নেবে */
-    }
-
-    /* 3. ডেস্কটপে গ্রাফটি যেন আরও স্পষ্ট ও বড় দেখা যায় */
-    .chart-container {
-        min-height: 400px;
-    }
-    #voltageChart {
-        min-height: 400px !important; 
     }
 }
