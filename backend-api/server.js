@@ -22,12 +22,12 @@ const db = require('./config/db');
 const app = express();
 const server = http.createServer(app);  
 
-// FIXED: Restrict CORS to only allow your Vercel frontend and Localhost
+// FIXED: Updated with the exact Vercel URL
 const allowedOrigins = [
     'http://localhost:3000', 
     'http://localhost:5000', 
     'http://localhost:3001', 
-    'https://heliostrack-distributed-solar-monitoring-system-c5vu0scnl.vercel.app' 
+    'https://helios-track-distributed-solar-moni.vercel.app' // correct link of vercel
 ];
 
 const io = new Server(server, {         
