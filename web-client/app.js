@@ -40,7 +40,7 @@ function setupAuth() {
             return;
         }
 
-    try {
+        try {
             // 🛠️ FIXED: Better error handling with detailed debug info
             console.log(`🔍 Attempting login to: ${API_URL}/api/login`);
             console.log(`📧 Email: ${email}`);
@@ -233,13 +233,30 @@ document.getElementById('addPanelBtn').addEventListener('click', async () => {
         const result = await response.json();
         
         if (result.success) {
-            alert(`✅ Success! New Panel Added.\nID: ${result.panel_id}\nType: ${panelType}\n\nThe Simulator will automatically detect this and start sending live data within 5 seconds!`);
+            Swal.fire({
+                title: 'Success!',
+                text: `New Panel Added. ID: ${result.panel_id}\nType: ${panelType}`,
+                icon: 'success',
+                confirmButtonText: 'Great!',
+                timer: 3000, 
+                timerProgressBar: true
+            });
         } else {
-            alert(`❌ Failed to add panel: ${result.message || 'Unknown error'}`);
+            Swal.fire({
+                title: 'Error!',
+                text: `Failed to add panel: ${result.message || 'Unknown error'}`,
+                icon: 'error',
+                confirmButtonColor: '#d33'
+            });
         }
     } catch (error) {
         console.error("Error adding panel:", error);
-        alert("Server error. Check console.");
+        Swal.fire({
+            title: 'Error!',
+            text: 'Server error. Check console.',
+            icon: 'error',
+            confirmButtonColor: '#d33'
+        });
     } finally {
         btn.innerText = "➕ Add New Panel";
         btn.disabled = false;
@@ -247,11 +264,20 @@ document.getElementById('addPanelBtn').addEventListener('click', async () => {
 });
 
 // ==========================================
-// UI RENDERING HELPERS
+// UI RENDERING HELPERS (DATATABLES INTEGRATION)
 // ==========================================
+let dataTableInstance = null;
+
+// 1. Initial Load or Bulk Update
 function updateTable(logs) {
     const tableBody = document.getElementById('logs-body');
-    tableBody.innerHTML = '';
+
+    // Destroy existing DataTables instance if it exists
+    if (dataTableInstance) {
+        dataTableInstance.destroy(); 
+    }
+
+    tableBody.innerHTML = ''; // Clear old data
 
     logs.forEach(log => {
         const row = document.createElement('tr');
@@ -265,26 +291,38 @@ function updateTable(logs) {
         `;
         tableBody.appendChild(row);
     });
+
+    // 🛠️ Initialize DataTables
+    dataTableInstance = $('#logsTable').DataTable({
+        order: [[0, 'desc']], // Sort descending by Log ID
+        pageLength: 10,       // Show 10 rows per page
+        responsive: true,
+        language: {
+            search: "🔍 Search Logs:"
+        }
+    });
 }
 
+// 2. Live Data Update (For Simulator)
 function prependSingleLogToTable(log) {
-    const tableBody = document.getElementById('logs-body');
-    const row = document.createElement('tr');
-    row.innerHTML = `
-        <td>${log.log_id}</td>
-        <td><strong>${log.panel_type}</strong></td>
-        <td>${log.voltage}</td>
-        <td>${log.current_amps}</td>
-        <td>${log.power_watts}</td>
-        <td>${new Date(log.recorded_at).toLocaleTimeString()}</td>
-    `;
-    tableBody.insertBefore(row, tableBody.firstChild);
-
-    if (tableBody.rows.length > 40) {
-        tableBody.deleteRow(tableBody.rows.length - 1);
+    if (dataTableInstance) {
+        const newRowData = [
+            log.log_id,
+            `<strong>${log.panel_type}</strong>`,
+            log.voltage,
+            log.current_amps,
+            log.power_watts,
+            new Date(log.recorded_at).toLocaleTimeString()
+        ];
+        
+        // Add new row via DataTables API and retain pagination
+        dataTableInstance.row.add(newRowData).draw(false);
     }
 }
 
+// ==========================================
+// CHART CONFIGURATION
+// ==========================================
 function updateChart(logs) {
     const chronologicalLogs = [...logs].reverse();
     const uniquePanels = [...new Set(chronologicalLogs.map(log => log.panel_type))];
@@ -332,7 +370,30 @@ function updateChart(logs) {
     voltageChart = new Chart(ctx, {
         type: 'line',
         data: { labels: allTimestamps, datasets: datasets },
-        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: false } } }
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            scales: { 
+                y: { 
+                    beginAtZero: false 
+                },
+                // 🛠️ FIXED: Added X-axis rules to prevent overlapping text
+                x: {
+                    ticks: {
+                        autoSkip: true,
+                        maxTicksLimit: 8, 
+                        maxRotation: 0,   
+                        minRotation: 0
+                    }
+                }
+            },
+            // 🛠️ FIXED: Added padding so it doesn't touch the table below
+            layout: {
+                padding: {
+                    bottom: 20
+                }
+            }
+        }
     });
 }
 
