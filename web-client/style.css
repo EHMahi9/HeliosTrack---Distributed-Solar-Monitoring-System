@@ -240,3 +240,41 @@ th {
         width: 100% !important;
     }
 }
+
+/* ==========================================
+   💻 DESKTOP WEB APP OPTIMIZATION (LARGE SCREENS)
+   ========================================== */
+@media (min-width: 769px) {
+    /* 1. ড্যাশবোর্ড যেন বড় মনিটরে অতিরিক্ত ছড়িয়ে না যায় */
+    body {
+        background-color: #f4f7f6; /* চোখের জন্য আরামদায়ক ব্যাকগ্রাউন্ড */
+    }
+
+    #dashboard-container, #login-container {
+        max-width: 1400px; /* সর্বোচ্চ সাইজ ফিক্স করে দেওয়া হলো */
+        margin: 40px auto; /* ড্যাশবোর্ডকে স্ক্রিনের ঠিক মাঝখানে আনবে */
+        padding: 30px;
+        background: #ffffff;
+        box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.05); /* একটি প্রিমিয়াম 3D শ্যাডো */
+        border-radius: 12px; /* চারপাশটা একটু গোল করে দেবে */
+    }
+
+    /* 2. ROI কার্ডগুলোকে (kWh, $, CO2) একদম সমান মাপে সাজানো */
+    #roi-widgets {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+    }
+    
+    #roi-widgets > div {
+        flex: 1; /* কার্ডগুলো সমান জায়গা নেবে */
+    }
+
+    /* 3. ডেস্কটপে গ্রাফটি যেন আরও স্পষ্ট ও বড় দেখা যায় */
+    .chart-container {
+        min-height: 400px;
+    }
+    #voltageChart {
+        min-height: 400px !important; 
+    }
+}
