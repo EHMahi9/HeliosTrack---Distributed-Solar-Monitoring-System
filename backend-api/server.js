@@ -302,6 +302,9 @@ app.post('/api/panels', verifyToken, async (req, res) => {
         const sql = 'INSERT INTO solar_panels (panel_type, api_secret) VALUES (?, ?)';
         const [result] = await db.execute(sql, [panel_type, newApiSecret]);
 
+        // Notify simulator that a new panel was added
+        await sendPanelsToSimulator();
+
         res.status(201).json({ 
             success: true, 
             message: "New panel registered successfully",
@@ -342,21 +345,49 @@ app.get('/api/logs/export', async (req, res) => {
 });
 
 // ---------------------------------------------------------
+// IPC: Helper to send panel list to the simulator child process
+// ---------------------------------------------------------
+let simulatorProcess = null;
+
+async function sendPanelsToSimulator() {
+    if (!simulatorProcess) return;
+    try {
+        const sql = 'SELECT panel_id, panel_type, api_secret FROM solar_panels';
+        const [panels] = await db.execute(sql);
+        simulatorProcess.send({ type: 'panels', data: panels });
+        console.log(`Sent ${panels.length} panel(s) to simulator via IPC.`);
+    } catch (error) {
+        console.error("Failed to send panel list to simulator:", error);
+    }
+}
+
+// ---------------------------------------------------------
 // SERVER STARTUP & SIMULATOR FORK
 // ---------------------------------------------------------
 function startServer() {
     server.listen(PORT, () => {
         console.log(`HeliosTrack Backend API & WebSocket Server running on port ${PORT}`);
 
-        // Note: Simulator running unconditionally (Bug #11) remains as you previously indicated it was intentional for your deployment context.
         const simulatorPath = path.join(__dirname, 'simulator.js');
-        const simulatorProcess = fork(simulatorPath);
+        const proc = fork(simulatorPath);
+        simulatorProcess = proc;
 
         console.log("IoT Simulator auto-started in the background.");
 
+        // When simulator requests panels (on startup), send them immediately
+        simulatorProcess.on('message', (message) => {
+            if (message.type === 'request_panels') {
+                sendPanelsToSimulator();
+            }
+        });
+
         simulatorProcess.on('exit', (code) => {
             console.log(`Simulator exited with code ${code}`);
+            simulatorProcess = null;
         });
+
+        // Send initial panel list after a short delay to ensure simulator is listening
+        setTimeout(() => sendPanelsToSimulator(), 1000);
     });
 }
 

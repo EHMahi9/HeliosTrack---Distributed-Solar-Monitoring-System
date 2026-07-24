@@ -1,21 +1,18 @@
 // simulator.js - Acts as a Dynamic Virtual IoT Fleet
 const API_URL_LOGS = 'http://localhost:3001/api/logs';
-const API_URL_PANELS = 'http://localhost:3001/api/panels';
 
-let activePanels = []; // This array is now dynamic!
+let activePanels = []; // Updated in real-time via IPC from parent process
 
-// 1. Fetch the latest list of panels from the database
-async function fetchActivePanels() {
-    try {
-        const response = await fetch(API_URL_PANELS);
-        const result = await response.json();
-        if (result.success) {
-            activePanels = result.data; // Contains panel_id, panel_type, and api_secret
-        }
-    } catch (error) {
-        console.error("Failed to fetch active panels. Retrying...", error);
+// 1. Listen for panel list updates from the parent server.js via IPC
+process.on('message', (message) => {
+    if (message.type === 'panels' && Array.isArray(message.data)) {
+        activePanels = message.data;
+        console.log(`Simulator received ${activePanels.length} panel(s) via IPC.`);
     }
-}
+});
+
+// Request the initial panel list from the parent process on startup
+process.send({ type: 'request_panels' });
 
 // 2. Send log using the specific API Key for each panel
 async function sendLog(panel_id, api_secret, voltage, current_amps, power_watts) {
@@ -36,8 +33,7 @@ async function sendLog(panel_id, api_secret, voltage, current_amps, power_watts)
 
 // 3. Generate data for all dynamically loaded panels
 async function generateAndSendLog() {
-    // Refresh the panel list before generating data
-    await fetchActivePanels();
+    // Panel list is updated in real-time via IPC — no need to fetch again
 
     if (activePanels.length === 0) return; // If no panels exist, do nothing
 
