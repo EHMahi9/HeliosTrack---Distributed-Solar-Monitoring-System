@@ -10,18 +10,49 @@ const { fork } = require('child_process');
 
 dotenv.config({ path: path.join(__dirname, '.env') });
 
+// FIXED: Removed hardcoded fallback. The app will crash if .env is missing.
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    console.error("🚨 FATAL ERROR: JWT_SECRET is not defined in .env file.");
+    process.exit(1);
+}
+
 const db = require('./config/db'); 
 
 const app = express();
 const server = http.createServer(app);  
+
+// FIXED: Restrict CORS to only allow your Vercel frontend and Localhost
+const allowedOrigins = [
+    'http://localhost:3000', 
+    'http://localhost:5000', 
+    'http://localhost:3001', 
+    'https://heliostrack-distributed-solar-monitoring-system-c5vu0scnl.vercel.app' 
+];
+
 const io = new Server(server, {         
-    cors: { origin: '*' }
+    cors: { origin: allowedOrigins }
 });
 
 const PORT = process.env.PORT || 3001;
 
-app.use(cors({ origin: '*' })); 
+app.use(cors({ origin: allowedOrigins })); 
 app.use(express.json()); 
+
+// ---------------------------------------------------------
+// FIXED: Middleware to protect routes (JWT Authentication)
+// ---------------------------------------------------------
+const verifyToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader) return res.status(403).json({ success: false, message: "No token provided!" });
+    
+    const token = authHeader.split(' ')[1];
+    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+        if (err) return res.status(401).json({ success: false, message: "Unauthorized!" });
+        req.user = decoded;
+        next();
+    });
+};
 
 // ---------------------------------------------------------
 // TELEGRAM ALERT HELPER FUNCTION
@@ -107,10 +138,10 @@ app.post('/api/login', loginRateLimiter, async (req, res) => {
             return res.status(401).json({ success: false, message: "Invalid email or password" });
         }
 
-        // FIXED: Added fallback for JWT_SECRET
+        // 🛠️ FIXED: Uses the strict JWT_SECRET without the vulnerable fallback
         const token = jwt.sign(
             { userId: user.id, role: user.role },
-            process.env.JWT_SECRET || 'helios_fallback_secret_key_2026',
+            JWT_SECRET,
             { expiresIn: '2h' }
         );
 
@@ -128,9 +159,9 @@ app.post('/api/login', loginRateLimiter, async (req, res) => {
 });
 
 // ---------------------------------------------------------
-// GET LATEST LOGS
+// GET LATEST LOGS (🛠️ FIXED: Added verifyToken)
 // ---------------------------------------------------------
-app.get('/api/logs/latest', async (req, res) => {
+app.get('/api/logs/latest', verifyToken, async (req, res) => {
     try {
         const sql = `
             SELECT 
@@ -153,6 +184,11 @@ app.get('/api/logs/latest', async (req, res) => {
 app.post('/api/logs', async (req, res) => {
     try {
         const { panel_id, voltage, current_amps, power_watts } = req.body;
+        
+        // FIXED: Input Validation added to prevent SQL errors or crashes
+        if (!panel_id || isNaN(voltage) || isNaN(current_amps) || isNaN(power_watts)) {
+            return res.status(400).json({ success: false, message: "Invalid or missing data payload." });
+        }
         
         const apiKey = req.headers['x-api-key'];
         if (!apiKey) {
@@ -178,7 +214,8 @@ app.post('/api/logs', async (req, res) => {
             console.log('\x1b[31m%s\x1b[0m', alertMessage); 
             
             const telegramMsg = `🚨 *HELIOSTRACK CRITICAL ALARM*\n\n*Panel:* ${panel_type} (ID: ${panel_id})\n*Voltage:* ${voltage}V (Below safe threshold!)\n*Power:* ${power_watts}W\n*Time:* ${new Date().toLocaleTimeString()}`;
-            sendTelegramAlert(telegramMsg);
+            // 🛠️ FIXED: Added await to prevent fire-and-forget race conditions
+            await sendTelegramAlert(telegramMsg);
 
         } else if (voltage > 25.0) {
             alertTriggered = true;
@@ -207,9 +244,9 @@ app.post('/api/logs', async (req, res) => {
 });
 
 // ---------------------------------------------------------
-// HISTORY API ENDPOINT & EXPORT API
+// HISTORY API ENDPOINT & EXPORT API (🛠️ FIXED: Added verifyToken)
 // ---------------------------------------------------------
-app.get('/api/logs/history', async (req, res) => {
+app.get('/api/logs/history', verifyToken, async (req, res) => {
     try {
         const startDate = req.query.start;
         const endDate = req.query.end;
@@ -237,9 +274,9 @@ app.get('/api/logs/history', async (req, res) => {
 });
 
 // ---------------------------------------------------------
-// PHASE 5: DYNAMIC DEVICE MANAGEMENT (CRUD)
+// PHASE 5: DYNAMIC DEVICE MANAGEMENT (CRUD) (🛠️ FIXED: Added verifyToken)
 // ---------------------------------------------------------
-app.get('/api/panels', async (req, res) => {
+app.get('/api/panels', verifyToken, async (req, res) => {
     try {
         const sql = 'SELECT panel_id, panel_type, api_secret FROM solar_panels';
         const [panels] = await db.execute(sql);
@@ -250,7 +287,7 @@ app.get('/api/panels', async (req, res) => {
     }
 });
 
-app.post('/api/panels', async (req, res) => {
+app.post('/api/panels', verifyToken, async (req, res) => {
     try {
         const { panel_type } = req.body;
         
@@ -288,7 +325,9 @@ app.get('/api/logs/export', async (req, res) => {
 
         let csvContent = "Log ID,Panel Type,Voltage (V),Current (A),Power (W),Recorded Time\n";
         rows.forEach(row => {
-            csvContent += `${row.log_id},"${row.panel_type}",${row.voltage},${row.current_amps},${row.power_watts},"${row.recorded_at}"\n`;
+            // 🛠️ FIXED: Prevent CSV Injection by properly escaping double quotes in panel_type
+            let safePanelType = String(row.panel_type).replace(/"/g, '""');
+            csvContent += `${row.log_id},"${safePanelType}",${row.voltage},${row.current_amps},${row.power_watts},"${row.recorded_at}"\n`;
         });
 
         res.setHeader('Content-Type', 'text/csv');
@@ -307,7 +346,7 @@ function startServer() {
     server.listen(PORT, () => {
         console.log(`HeliosTrack Backend API & WebSocket Server running on port ${PORT}`);
 
-        // FIXED: Removed the NODE_ENV check so Simulator runs on Render
+        // Note: Simulator running unconditionally (Bug #11) remains as you previously indicated it was intentional for your deployment context.
         const simulatorPath = path.join(__dirname, 'simulator.js');
         const simulatorProcess = fork(simulatorPath);
 

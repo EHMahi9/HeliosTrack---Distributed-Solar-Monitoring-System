@@ -346,23 +346,6 @@ function appendLiveLogToChart(log) {
     voltageChart.update();
 }
 
-    // Safely update datasets and retain index alignment
-    voltageChart.data.datasets.forEach(dataset => {
-        if (dataset.label.startsWith(log.panel_type)) {
-            dataset.data.push(parseFloat(log.voltage));
-        } else {
-            // Push null for missing panel readings at this timestamp to keep arrays equal size
-            dataset.data.push(null); 
-        }
-
-        if (dataset.data.length > 40) {
-            dataset.data.shift();
-        }
-    });
-
-    voltageChart.update();
-}
-
 function checkAlarms(latestLog) {
     const banner = document.getElementById('alarmBanner');
     if (!banner) return; 
@@ -415,11 +398,11 @@ function updateBusinessMetrics(powerWatts) {
 function updateBatteryStorage(powerWatts) {
     document.getElementById('battery-container').style.display = 'flex';
 
-    // Simulated Charging Math: Every 5 seconds, increase battery based on power generated.
-    // (Divided by a factor to make the live animation visible and fun to watch)
+    // 🛠️ FIXED: Added realistic battery drain mechanic
     const chargeAdded = (powerWatts / 1000) * 0.8; 
+    const randomDrain = Math.random() * 0.5; // randomly low percent charge decrease
     
-    currentBatteryPercent += chargeAdded;
+    currentBatteryPercent = currentBatteryPercent + chargeAdded - randomDrain;
 
     const batteryFill = document.getElementById('battery-fill');
     const batteryText = document.getElementById('batteryPercent');
