@@ -1,5 +1,5 @@
 ```markdown
-# ☀️ HeliosTrack - Distributed Solar Monitoring System
+# HeliosTrack - Distributed Solar Monitoring System
 
 ![Status](https://img.shields.io/badge/Status-Live-success)
 ![Version](https://img.shields.io/badge/Version-1.0.0-blue)
@@ -11,7 +11,7 @@ Built with scalability in mind, it seamlessly adapts to both local desktop envir
 
 ---
 
-## ✨ Key Features
+## Key Features
 
 *   **Real-Time Monitoring:** Live WebSocket integration (`Socket.io`) for instant UI updates every 5 seconds without page reloads.
 *   **Dynamic Data Visualization:** Smooth, interactive multi-line charts using `Chart.js` to track voltage fluctuations across multiple solar panels.
@@ -25,7 +25,7 @@ Built with scalability in mind, it seamlessly adapts to both local desktop envir
 
 ---
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 **Frontend:**
 *   HTML5, CSS3, Vanilla JavaScript
@@ -45,7 +45,7 @@ Built with scalability in mind, it seamlessly adapts to both local desktop envir
 
 ---
 
-## ⚙️ Local Installation & Setup
+## Local Installation & Setup
 
 Follow these steps to run the project locally on your machine.
 
@@ -103,7 +103,7 @@ This project is configured for seamless cloud deployment:
 
 ---
 
-## 🔌 API Endpoints Reference
+## API Endpoints Reference
 
 | Method | Endpoint | Description | Auth Required |
 | --- | --- | --- | --- |
@@ -117,7 +117,7 @@ This project is configured for seamless cloud deployment:
 
 ---
 
-## 👨‍💻 Author
+## Author
 
 **Ebnul Hasan Mahi**
 
@@ -125,7 +125,7 @@ This project is configured for seamless cloud deployment:
 
 ---
 
-## 📜 License
+## License
 
 This project is licensed under the MIT License. Feel free to use, modify, and distribute it for educational and portfolio purposes.
 
