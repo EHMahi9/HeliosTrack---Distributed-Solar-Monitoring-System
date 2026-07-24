@@ -19,8 +19,12 @@ if (!JWT_SECRET) {
 
 const db = require('./config/db'); 
 
+// 🛠️ FIXED: Telegram Alert Cooldown — prevents spam (5 min cooldown per panel)
+const lastAlertTimes = {};
+const ALERT_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes in milliseconds
+
 const app = express();
-const server = http.createServer(app);  
+const server = http.createServer(app);
 
 // 🛠️ FIXED: Dynamic CORS - Supports ALL Vercel deployments & custom domains
 const allowedOrigins = [
@@ -240,13 +244,37 @@ app.post('/api/logs', async (req, res) => {
             console.log('\x1b[31m%s\x1b[0m', alertMessage); 
             
             const telegramMsg = `🚨 *HELIOSTRACK CRITICAL ALARM*\n\n*Panel:* ${panel_type} (ID: ${panel_id})\n*Voltage:* ${voltage}V (Below safe threshold!)\n*Power:* ${power_watts}W\n*Time:* ${new Date().toLocaleTimeString()}`;
-            // 🛠️ FIXED: Added await to prevent fire-and-forget race conditions
-            await sendTelegramAlert(telegramMsg);
+            // 🛠️ FIXED: Cooldown check — only send Telegram alert every 5 mins per panel
+            const now = Date.now();
+            const lastAlertTime = lastAlertTimes[panel_id] || 0;
+            
+            if (now - lastAlertTime > ALERT_COOLDOWN_MS) {
+                await sendTelegramAlert(telegramMsg);
+                lastAlertTimes[panel_id] = now;
+                console.log(`📨 Telegram alert sent for panel ${panel_id}. Cooldown 5min started.`);
+            } else {
+                const remaining = Math.ceil((ALERT_COOLDOWN_MS - (now - lastAlertTime)) / 1000);
+                console.log(`🔇 Suppressed alert for panel ${panel_id} (cooldown ${remaining}s left).`);
+            }
 
         } else if (voltage > 25.0) {
             alertTriggered = true;
             alertMessage = `WARNING: Voltage spike detected at ${voltage}V!`;
             console.log('\x1b[33m%s\x1b[0m', alertMessage); 
+            
+            // 🛠️ FIXED: Same cooldown for spike warnings
+            const now = Date.now();
+            const lastAlertTime = lastAlertTimes[panel_id] || 0;
+            
+            if (now - lastAlertTime > ALERT_COOLDOWN_MS) {
+                const telegramMsg = `⚠️ *HELIOSTRACK VOLTAGE SPIKE*\n\n*Panel:* ${panel_type} (ID: ${panel_id})\n*Voltage:* ${voltage}V (Spike detected!)\n*Power:* ${power_watts}W\n*Time:* ${new Date().toLocaleTimeString()}`;
+                await sendTelegramAlert(telegramMsg);
+                lastAlertTimes[panel_id] = now;
+                console.log(`📨 Telegram spike alert sent for panel ${panel_id}. Cooldown 5min started.`);
+            } else {
+                const remaining = Math.ceil((ALERT_COOLDOWN_MS - (now - lastAlertTime)) / 1000);
+                console.log(`🔇 Suppressed spike alert for panel ${panel_id} (cooldown ${remaining}s left).`);
+            }
         }
 
         const sql = `INSERT INTO generation_logs (panel_id, voltage, current_amps, power_watts, recorded_at) VALUES (?, ?, ?, ?, NOW())`;
