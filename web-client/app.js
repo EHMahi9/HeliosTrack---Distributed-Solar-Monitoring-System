@@ -341,12 +341,13 @@ function updateChart(logs) {
     const datasets = [];
     
     // 🎨 FIXED: Added more colors so 3 or more panels don't look the same
+    // 🎨 FIXED: Updated to match the new Dark Theme Design Tokens
     const colors = [
-        { border: '#2980b9', bg: 'rgba(41, 128, 185, 0.1)' }, // Blue
-        { border: '#27ae60', bg: 'rgba(39, 174, 96, 0.1)' },  // Green
-        { border: '#e67e22', bg: 'rgba(230, 126, 34, 0.1)' }, // Orange
-        { border: '#8e44ad', bg: 'rgba(142, 68, 173, 0.1)' }, // Purple
-        { border: '#e74c3c', bg: 'rgba(231, 76, 60, 0.1)' }   // Red
+        { border: '#2DD4A7', bg: 'rgba(45, 212, 167, 0.1)' }, // Energy Green (accent-energy)
+        { border: '#F5A729', bg: 'rgba(245, 167, 41, 0.1)' }, // Solar Orange (accent-solar)
+        { border: '#9D7BEA', bg: 'rgba(157, 123, 234, 0.1)' }, // Neon Purple (accent-purple)
+        { border: '#FF5C5C', bg: 'rgba(255, 92, 92, 0.1)' },   // Alert Red (accent-alert)
+        { border: '#FFA53D', bg: 'rgba(255, 165, 61, 0.1)' }   // Warn Orange (accent-warn)
     ];
 
     uniquePanels.forEach((panelName, index) => {
@@ -503,11 +504,16 @@ function updateBusinessMetrics(powerWatts) {
 function updateBatteryStorage(powerWatts) {
     document.getElementById('battery-container').style.display = 'flex';
 
-    //FIXED: Added realistic battery drain mechanic
+    // Battery charge/drain math
     const chargeAdded = (powerWatts / 1000) * 0.8; 
-    const randomDrain = Math.random() * 0.5; // randomly low percent charge decrease
+    const randomDrain = Math.random() * 0.5; 
     
     currentBatteryPercent = currentBatteryPercent + chargeAdded - randomDrain;
+
+    // 🛠️ THE FIX: Enforce the minimum limit (Floor Bound)
+    if (currentBatteryPercent < BATTERY_MIN) {
+        currentBatteryPercent = BATTERY_MIN;
+    }
 
     const batteryFill = document.getElementById('battery-fill');
     const batteryText = document.getElementById('batteryPercent');
@@ -523,14 +529,31 @@ function updateBatteryStorage(powerWatts) {
         batteryText.innerText = '100.0%';
         
         statusText.innerText = 'Fully Charged';
-        statusText.style.color = '#f39c12';
+        statusText.style.color = 'var(--accent-solar)';
         
         gridText.innerText = 'Exporting to Grid 💸';
-        gridText.style.color = '#27ae60';
-        gridWidget.style.borderTopColor = '#f1c40f';
+        gridText.style.color = 'var(--accent-energy)';
+        gridWidget.style.borderTopColor = 'var(--accent-solar)';
     } else {
-        // Still Charging
+        // Still Charging or Draining normally
         batteryFill.style.width = `${currentBatteryPercent}%`;
         batteryText.innerText = `${currentBatteryPercent.toFixed(1)}%`;
+        
+        // 🛠️ FIX: Ensure full-battery class is removed if it drops below 100%
+        batteryFill.classList.remove('battery-full');
+        
+        // Dynamic UI status for empty battery
+        if (currentBatteryPercent <= BATTERY_MIN) {
+            statusText.innerText = 'Battery Empty';
+            statusText.style.color = 'var(--accent-alert)'; 
+        } else {
+            statusText.innerText = 'Charging from grid...';
+            statusText.style.color = 'var(--text-muted)';
+        }
+
+        // Reset grid status UI
+        gridText.innerText = 'Synchronized';
+        gridText.style.color = 'var(--accent-purple)';
+        gridWidget.style.borderTopColor = 'var(--accent-purple)';
     }
 }
