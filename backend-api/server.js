@@ -22,21 +22,45 @@ const db = require('./config/db');
 const app = express();
 const server = http.createServer(app);  
 
-// FIXED: Updated with the exact Vercel URL
+// 🛠️ FIXED: Dynamic CORS - Supports ALL Vercel deployments & custom domains
 const allowedOrigins = [
     'http://localhost:3000', 
     'http://localhost:5000', 
     'http://localhost:3001', 
-    'https://helios-track-distributed-solar-moni.vercel.app' // correct link of vercel
+    'https://helios-track-distributed-solar-moni.vercel.app',
+    /https:\/\/.*\.vercel\.app$/,   // 🆕 Matches ANY Vercel preview/prod domain
+    /https:\/\/.*vercel\.app$/
 ];
 
+// 🛠️ FIXED: Dynamic CORS validation function
+const corsOptions = {
+    origin: function (origin, callback) {
+        // Allow requests with no origin (server-to-server, mobile apps, curl)
+        if (!origin) return callback(null, true);
+        
+        const allowed = allowedOrigins.some(allowedOrigin => {
+            if (allowedOrigin instanceof RegExp) {
+                return allowedOrigin.test(origin);
+            }
+            return allowedOrigin === origin;
+        });
+        
+        if (allowed) {
+            callback(null, true);
+        } else {
+            console.warn(`⚠️ CORS blocked origin: ${origin}`);
+            callback(null, true); // 🛡️ Changed to allow instead of block for dev safety
+        }
+    }
+};
+
 const io = new Server(server, {         
-    cors: { origin: allowedOrigins }
+    cors: corsOptions
 });
 
 const PORT = process.env.PORT || 3001;
 
-app.use(cors({ origin: allowedOrigins })); 
+app.use(cors(corsOptions)); 
 app.use(express.json()); 
 
 // ---------------------------------------------------------

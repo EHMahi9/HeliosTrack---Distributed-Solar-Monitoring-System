@@ -40,26 +40,45 @@ function setupAuth() {
             return;
         }
 
-        try {
-            // FIXED: Using API_URL instead of localhost
+    try {
+            // 🛠️ FIXED: Better error handling with detailed debug info
+            console.log(`🔍 Attempting login to: ${API_URL}/api/login`);
+            console.log(`📧 Email: ${email}`);
+            
             const response = await fetch(`${API_URL}/api/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
             });
 
-            const data = await response.json();
+            console.log(`📡 Response status: ${response.status} ${response.statusText}`);
+
+            // 🆕 Try to get response body even for non-JSON errors
+            let data;
+            try {
+                data = await response.json();
+            } catch (parseError) {
+                const textBody = await response.text();
+                console.error("❌ Non-JSON response:", textBody);
+                errorText.innerText = `Server returned ${response.status}. Check Render logs.`;
+                errorText.style.display = 'block';
+                return;
+            }
+
+            console.log(`📦 Response data:`, data);
 
             if (data.success) {
                 localStorage.setItem('helios_token', data.token);
                 errorText.style.display = 'none';
+                console.log("✅ Login successful! Token stored.");
                 showDashboard();
             } else {
                 errorText.innerText = data.message || "Invalid credentials!";
                 errorText.style.display = 'block';
             }
         } catch (err) {
-            errorText.innerText = "Server error. Is the backend running?";
+            console.error("❌ Login error:", err);
+            errorText.innerText = `Server error. Check if backend is running at ${API_URL}`;
             errorText.style.display = 'block';
         }
     });

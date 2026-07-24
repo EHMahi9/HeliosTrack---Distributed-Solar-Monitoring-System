@@ -98,8 +98,59 @@ The frontend dynamically detects the environment. You can simply open the `web-c
 
 This project is configured for seamless cloud deployment:
 
-* **Backend (Render):** Deploy the `backend-api` directory as a Web Service on Render. Ensure all `.env` variables are added to the Render dashboard. The simulator is designed to run concurrently.
-* **Frontend (Vercel):** Deploy the `web-client` directory on Vercel. The `app.js` file includes dynamic environment detection to automatically route API requests to the Render backend when hosted on Vercel.
+### Backend (Render)
+Deploy the `backend-api` directory as a Web Service on Render. Ensure all `.env` variables are added to the Render dashboard. The simulator is designed to run concurrently.
+
+**Important:** After deploying to Render, run this command in **Render Shell** to create an admin user:
+```bash
+node setupAdmin.js
+```
+
+### Frontend (Vercel)
+Deploy the `web-client` directory on Vercel. The `app.js` file makes API requests to the Render backend URL.
+
+---
+
+## 🔧 Login Problem Solving Guide (বাংলা)
+
+### লগইন সমস্যা সমাধান — ধাপে ধাপে গাইড
+
+#### ধাপ 1️⃣: ব্রাউজার Console চেক করুন
+- আপনার Vercel সাইটে যান
+- **F12** চাপুন → **Console** ট্যাবে দেখুন কী error আসছে
+- **Network** ট্যাবে `login` request টি খুঁজুন, status code দেখুন
+
+#### ধাপ 2️⃣: Render Logs চেক করুন
+Render Dashboard → আপনার Web Service → **Logs** section এ যান।
+নিচের error গুলো খুঁজুন:
+
+| Error | মানে | সমাধান |
+|-------|------|--------|
+| `JWT_SECRET is not defined` | JWT_SECRET সেট করা নেই | Render Dashboard → Environment → `JWT_SECRET` যোগ করুন |
+| `ECONNREFUSED` | Database connect হচ্ছে না | `DB_HOST`, `DB_USER`, `DB_PASS` চেক করুন |
+| `Admin user created` | Admin ready ✅ | কিছু করতে হবে না |
+
+#### ধাপ 3️⃣: Admin User তৈরি করুন
+```bash
+# Render Dashboard এ → Shell tab → নিচের command দিন:
+cd backend-api && node setupAdmin.js
+```
+- Render Dashboard → Environment Variables এ `ADMIN_EMAIL` এবং `ADMIN_PASSWORD` সেট করা আছে কিনা নিশ্চিত হন
+- `setupAdmin.js` রান করার পর `"✅ Admin user created successfully."` দেখতে হবে
+
+#### ধাপ 4️⃣: Rate Limiter চেক করুন
+- ৫ বার ভুল email/password দিলে ১৫ মিনিট ব্লক
+- দেখুন response status `429` কিনা
+- Render service restart দিলে এই limit রিসেট হবে
+
+#### ধাপ 5️⃣: CORS Error
+আমরা `server.js` এ Dynamic CORS fix করে দিয়েছি — এখন যেকোনো Vercel URL কাজ করবে।
+যদি এখনো `Blocked by CORS` দেখে, তাহলে RENDER LOGS থেকে error টি কপি করে জানান।
+
+#### ধাপ 6️⃣: একদম শেষ চেষ্টা
+সব কিছু চেক করার পরেও যদি কাজ না করে:
+1. Render Dashboard → আপনার Web Service → **Manual Deploy** → **Deploy latest commit**
+2. আবার Login চেষ্টা করুন
 
 ---
 
