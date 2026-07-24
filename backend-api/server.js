@@ -127,16 +127,18 @@ app.post('/api/login', loginRateLimiter, async (req, res) => {
         const { email, password } = req.body;
 
         const [users] = await db.execute('SELECT * FROM users WHERE email = ?', [email]);
-        if (users.length === 0) {
+        
+        //FIXED: Timing Leak - Always run bcrypt.compare to prevent email enumeration
+        const dummyHash = '$2b$10$CYZcjYFFgucPdueaB9OUMuL93dcAfEiLuIv5AHDQIbO1tb7l/yuGi'; 
+        const hashToCompare = users.length > 0 ? users[0].password : dummyHash;
+        
+        const isMatch = await bcrypt.compare(password, hashToCompare);
+
+        if (users.length === 0 || !isMatch) {
             return res.status(401).json({ success: false, message: "Invalid email or password" });
         }
 
         const user = users[0];
-
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            return res.status(401).json({ success: false, message: "Invalid email or password" });
-        }
 
         // 🛠️ FIXED: Uses the strict JWT_SECRET without the vulnerable fallback
         const token = jwt.sign(

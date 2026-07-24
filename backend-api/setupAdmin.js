@@ -1,39 +1,36 @@
 const bcrypt = require('bcrypt');
-const path = require('path');
+const db = require('./config/db');
 const dotenv = require('dotenv');
+const path = require('path');
 
 // Load environment variables
 dotenv.config({ path: path.join(__dirname, '.env') });
-const db = require('./config/db');
 
-async function createAdminUser() {
+async function setupAdmin() {
+    //FIXED: Credentials loaded dynamically from environment variables
+    const email = process.env.ADMIN_EMAIL;
+    const plainPassword = process.env.ADMIN_PASSWORD;
+
+    if (!email || !plainPassword) {
+        console.error("🚨 FATAL ERROR: ADMIN_EMAIL and ADMIN_PASSWORD must be set in your .env file.");
+        process.exit(1);
+    }
+
     try {
-        // The custom admin credentials you provided
-        const email = "vaibongo20@gmail.com";
-        const plainPassword = "mahi123@";
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(plainPassword, salt);
 
-        console.log("Generating secure hash for the password...");
-        
-        // Hashing the custom password
-        const hashedPassword = await bcrypt.hash(plainPassword, 10);
+        const sql = `INSERT INTO users (email, password, role) VALUES (?, ?, 'admin')`;
+        await db.execute(sql, [email, hashedPassword]);
 
-        // Save the custom user to the database
-        const sql = `INSERT INTO users (email, password, role) VALUES (?, ?, ?)`;
-        await db.execute(sql, [email, hashedPassword, 'admin']);
-
-        console.log('\x1b[32m%s\x1b[0m', "Success! Custom admin user created securely.");
-        console.log(`Email: ${email}`);
-        console.log(`Hashed Password saved in DB: ${hashedPassword}`); 
-        
+        //FIXED: Removed console.log that leaked the hashed password
+        console.log("✅ Admin user created successfully.");
         process.exit(0);
+
     } catch (error) {
-        if (error.code === 'ER_DUP_ENTRY') {
-            console.error('\x1b[31m%s\x1b[0m', "Error: This admin email already exists in the database.");
-        } else {
-            console.error("Database error:", error.message);
-        }
+        console.error("❌ Failed to setup admin:", error);
         process.exit(1);
     }
 }
 
-createAdminUser();
+setupAdmin();
