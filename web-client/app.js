@@ -239,14 +239,21 @@ document.getElementById('addPanelBtn').addEventListener('click', async () => {
                 icon: 'success',
                 confirmButtonText: 'Great!',
                 timer: 3000, 
-                timerProgressBar: true
+                timerProgressBar: true,
+                // 🛠️ FIXED: SweetAlert Dark Mode
+                background: '#121A2B',
+                color: '#EAF0FB',
+                confirmButtonColor: '#2DD4A7'
             });
         } else {
             Swal.fire({
                 title: 'Error!',
                 text: `Failed to add panel: ${result.message || 'Unknown error'}`,
-                icon: 'error',
-                confirmButtonColor: '#d33'
+            icon: 'error',
+                // 🛠️ FIXED: SweetAlert Dark Mode
+                background: '#121A2B',
+                color: '#EAF0FB',
+                confirmButtonColor: '#FF5C5C'
             });
         }
     } catch (error) {
@@ -255,7 +262,10 @@ document.getElementById('addPanelBtn').addEventListener('click', async () => {
             title: 'Error!',
             text: 'Server error. Check console.',
             icon: 'error',
-            confirmButtonColor: '#d33'
+            // 🛠️ FIXED: SweetAlert Dark Mode
+            background: '#121A2B',
+            color: '#EAF0FB',
+            confirmButtonColor: '#FF5C5C'
         });
     } finally {
         btn.innerText = "➕ Add New Panel";
@@ -373,21 +383,31 @@ function updateChart(logs) {
         options: { 
             responsive: true, 
             maintainAspectRatio: false, 
+            // 🛠️ FIXED: Chart.js Dark Mode Integration
+            color: '#8A96B3', // Maps to var(--text-muted)
             scales: { 
                 y: { 
-                    beginAtZero: false 
+                    beginAtZero: false,
+                    grid: {
+                        color: '#1c2a45' // Maps to var(--border-soft)
+                    },
+                    ticks: {
+                        color: '#8A96B3'
+                    }
                 },
-                // 🛠️ FIXED: Added X-axis rules to prevent overlapping text
                 x: {
+                    grid: {
+                        color: '#1c2a45'
+                    },
                     ticks: {
                         autoSkip: true,
                         maxTicksLimit: 8, 
                         maxRotation: 0,   
-                        minRotation: 0
+                        minRotation: 0,
+                        color: '#8A96B3'
                     }
                 }
             },
-            // 🛠️ FIXED: Added padding so it doesn't touch the table below
             layout: {
                 padding: {
                     bottom: 20
