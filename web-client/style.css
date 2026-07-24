@@ -182,3 +182,61 @@ th {
 .battery-full {
     background: #f1c40f !important; /* Turns gold when full */
 }
+
+/* ==========================================
+   📱 RESPONSIVE DESIGN (MOBILE & TABLET)
+   ========================================== */
+@media (max-width: 768px) {
+    /* 1. Login Box Fix */
+    #login-container {
+        width: 90% !important;
+        margin: 20px auto;
+        padding: 20px !important;
+    }
+
+    /* 2. Stack ROI Widgets (kWh, $, CO2) */
+    #roi-widgets {
+        flex-direction: column !important;
+        gap: 15px;
+    }
+    #roi-widgets > div {
+        width: 100% !important;
+        margin: 0 !important;
+    }
+
+    /* 3. Stack Battery and Grid Status */
+    #battery-container {
+        flex-direction: column !important;
+        gap: 15px;
+    }
+    #battery-container > div {
+        width: 100% !important;
+    }
+
+    /* 4. Make the Logs Table Scrollable */
+    /* মোবাইলে টেবিল ভেঙে যেন বাইরে না যায়, তাই ডানে-বামে স্ক্রল করার অপশন */
+    table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+        width: 100%;
+    }
+
+    /* 5. Admin Controls & Filters (Inputs and Buttons) */
+    #admin-controls {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+    #admin-controls input, 
+    #admin-controls select, 
+    #admin-controls button {
+        width: 100% !important;
+        margin-bottom: 10px;
+    }
+
+    /* 6. Chart Container Height adjustment for mobile */
+    #voltageChart {
+        min-height: 300px;
+        width: 100% !important;
+    }
+}

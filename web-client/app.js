@@ -267,9 +267,14 @@ function updateChart(logs) {
     const allTimestamps = [...new Set(chronologicalLogs.map(log => new Date(log.recorded_at).toLocaleTimeString()))];
 
     const datasets = [];
+    
+    // 🎨 FIXED: Added more colors so 3 or more panels don't look the same
     const colors = [
-        { border: '#2980b9', bg: 'rgba(41, 128, 185, 0.1)' }, 
-        { border: '#27ae60', bg: 'rgba(39, 174, 96, 0.1)' }   
+        { border: '#2980b9', bg: 'rgba(41, 128, 185, 0.1)' }, // Blue
+        { border: '#27ae60', bg: 'rgba(39, 174, 96, 0.1)' },  // Green
+        { border: '#e67e22', bg: 'rgba(230, 126, 34, 0.1)' }, // Orange
+        { border: '#8e44ad', bg: 'rgba(142, 68, 173, 0.1)' }, // Purple
+        { border: '#e74c3c', bg: 'rgba(231, 76, 60, 0.1)' }   // Red
     ];
 
     uniquePanels.forEach((panelName, index) => {
@@ -311,14 +316,35 @@ function appendLiveLogToChart(log) {
     if (!voltageChart) return;
 
     const timeLabel = new Date(log.recorded_at).toLocaleTimeString();
+    let labelIndex = voltageChart.data.labels.indexOf(timeLabel);
     
-    // Add timestamp label if unique
-    if (!voltageChart.data.labels.includes(timeLabel)) {
+    // 🛠️ FIXED: Handled multiple WebSocket logs arriving at the exact same second
+    if (labelIndex === -1) {
+        // If it's a new second, add the label and placeholders for all datasets
         voltageChart.data.labels.push(timeLabel);
-        if (voltageChart.data.labels.length > 40) {
-            voltageChart.data.labels.shift();
-        }
+        voltageChart.data.datasets.forEach(dataset => {
+            dataset.data.push(null); 
+        });
+        labelIndex = voltageChart.data.labels.length - 1;
     }
+
+    // Now safely update only the specific panel's data at this correct time index
+    voltageChart.data.datasets.forEach(dataset => {
+        if (dataset.label.startsWith(log.panel_type)) {
+            dataset.data[labelIndex] = parseFloat(log.voltage);
+        }
+    });
+
+    // Cleanup old data smoothly
+    if (voltageChart.data.labels.length > 40) {
+        voltageChart.data.labels.shift();
+        voltageChart.data.datasets.forEach(dataset => {
+            dataset.data.shift();
+        });
+    }
+
+    voltageChart.update();
+}
 
     // Safely update datasets and retain index alignment
     voltageChart.data.datasets.forEach(dataset => {
