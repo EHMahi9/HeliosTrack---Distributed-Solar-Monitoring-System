@@ -199,10 +199,15 @@ document.getElementById('addPanelBtn').addEventListener('click', async () => {
     btn.disabled = true;
 
     try {
-        // FIXED: Using API_URL instead of localhost
+        //FIXED: Fetch the token from LocalStorage
+        const token = localStorage.getItem('helios_token');
+
         const response = await fetch(`${API_URL}/api/panels`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` // 🛠️ FIXED: Attached the JWT token to bypass security
+            },
             body: JSON.stringify({ panel_type: panelType })
         });
 
@@ -211,7 +216,7 @@ document.getElementById('addPanelBtn').addEventListener('click', async () => {
         if (result.success) {
             alert(`✅ Success! New Panel Added.\nID: ${result.panel_id}\nType: ${panelType}\n\nThe Simulator will automatically detect this and start sending live data within 5 seconds!`);
         } else {
-            alert("❌ Failed to add panel.");
+            alert(`❌ Failed to add panel: ${result.message || 'Unknown error'}`);
         }
     } catch (error) {
         console.error("Error adding panel:", error);
@@ -318,7 +323,7 @@ function appendLiveLogToChart(log) {
     const timeLabel = new Date(log.recorded_at).toLocaleTimeString();
     let labelIndex = voltageChart.data.labels.indexOf(timeLabel);
     
-    // 🛠️ FIXED: Handled multiple WebSocket logs arriving at the exact same second
+    // FIXED: Handled multiple WebSocket logs arriving at the exact same second
     if (labelIndex === -1) {
         // If it's a new second, add the label and placeholders for all datasets
         voltageChart.data.labels.push(timeLabel);
@@ -398,7 +403,7 @@ function updateBusinessMetrics(powerWatts) {
 function updateBatteryStorage(powerWatts) {
     document.getElementById('battery-container').style.display = 'flex';
 
-    // 🛠️ FIXED: Added realistic battery drain mechanic
+    //FIXED: Added realistic battery drain mechanic
     const chargeAdded = (powerWatts / 1000) * 0.8; 
     const randomDrain = Math.random() * 0.5; // randomly low percent charge decrease
     
