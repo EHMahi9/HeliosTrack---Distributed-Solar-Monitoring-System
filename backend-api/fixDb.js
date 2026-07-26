@@ -14,21 +14,22 @@ async function fixTables() {
 
         console.log("🔌 Connected to TiDB. Fixing tables...");
 
-        // ১. পুরোনো ভুল টেবিলগুলো ডিলিট করা
-        await db.query(`DROP TABLE IF EXISTS generation_logs, panels`);
-        console.log("🗑️ Dropped old incorrect tables.");
+        // ১. পুরোনো টেবিলগুলো ড্রপ করা
+        await db.query(`DROP TABLE IF EXISTS generation_logs, solar_panels`);
+        console.log("🗑️ Dropped old tables.");
 
-        // ২. সঠিক নামে solar_panels টেবিল তৈরি
+        // ২. সঠিক কলামসহ solar_panels টেবিল তৈরি (api_secret সহ)
         await db.query(`
             CREATE TABLE solar_panels (
                 panel_id VARCHAR(100) PRIMARY KEY,
                 panel_type VARCHAR(100) NOT NULL,
+                api_secret VARCHAR(255) DEFAULT 'default_secret',
                 added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
-        console.log("✅ 'solar_panels' table created correctly.");
+        console.log("✅ 'solar_panels' table created WITH api_secret.");
 
-        // ৩. সঠিক কলামের নাম দিয়ে generation_logs তৈরি
+        // ৩. generation_logs টেবিল তৈরি
         await db.query(`
             CREATE TABLE generation_logs (
                 log_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -43,7 +44,7 @@ async function fixTables() {
         console.log("✅ 'generation_logs' table created correctly.");
 
         await db.end();
-        console.log("🎉 Database schema fixed!");
+        console.log("🎉 Database schema fully fixed!");
 
     } catch (error) {
         console.error("❌ Error fixing tables:", error.message);
