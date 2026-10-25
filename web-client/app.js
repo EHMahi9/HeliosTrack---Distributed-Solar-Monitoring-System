@@ -202,7 +202,23 @@ function setupFilterButtons() {
 
     document.getElementById('exportBtn').addEventListener('click', () => {
         // FIXED: Using API_URL instead of localhost
-        window.open(`${API_URL}/api/logs/export`, '_blank');
+        const token = localStorage.getItem('helios_token');
+        if (!token) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: 'Authentication Required',
+                    text: 'Please log in to export historical logs.',
+                    icon: 'warning',
+                    confirmButtonColor: '#2DD4A7',
+                    background: '#121A2B',
+                    color: '#EAF0FB'
+                });
+            } else {
+                alert('Please log in to export logs.');
+            }
+            return;
+        }
+        window.open(`${API_URL}/api/logs/export?token=${encodeURIComponent(token)}`, '_blank');
     });
 }
 

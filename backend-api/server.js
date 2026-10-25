@@ -72,9 +72,10 @@ app.use(express.json());
 // ---------------------------------------------------------
 const verifyToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
-    if (!authHeader) return res.status(403).json({ success: false, message: "No token provided!" });
+    const token = (authHeader && authHeader.startsWith('Bearer ')) ? authHeader.split(' ')[1] : (authHeader || (req.query && req.query.token));
+    if (!token) return res.status(403).json({ success: false, message: "No token provided!" });
     
-    const token = authHeader.split(' ')[1];
+
     jwt.verify(token, JWT_SECRET, (err, decoded) => {
         if (err) return res.status(401).json({ success: false, message: "Unauthorized!" });
         req.user = decoded;
@@ -369,7 +370,7 @@ app.post('/api/panels', verifyToken, async (req, res) => {
     }
 });
 
-app.get('/api/logs/export', async (req, res) => {
+app.get('/api/logs/export', verifyToken, async (req, res) => {
     try {
         const sql = `
             SELECT 
