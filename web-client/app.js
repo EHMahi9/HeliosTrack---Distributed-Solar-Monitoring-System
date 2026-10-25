@@ -153,6 +153,28 @@ function initWebSocket() {
         }
     });
 
+    socket.on('session_expired', (data) => {
+        console.warn("Session expired via WebSocket event:", data ? data.message : "Expired");
+        disconnectSocket();
+        localStorage.removeItem('helios_token');
+        showLogin();
+        const errorText = document.getElementById('loginError');
+        if (errorText) {
+            errorText.innerText = "Session expired. Please log in again.";
+            errorText.style.display = 'block';
+        }
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Session Expired',
+                text: 'Your session has expired. Please log in again.',
+                icon: 'warning',
+                confirmButtonColor: '#2DD4A7',
+                background: '#121A2B',
+                color: '#EAF0FB'
+            });
+        }
+    });
+
     // Listen for real-time logs pushed from the server
     socket.on('live_log_update', (newLog) => {
         const startDate = document.getElementById('startDate').value;

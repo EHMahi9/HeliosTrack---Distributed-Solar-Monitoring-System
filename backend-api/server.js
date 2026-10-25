@@ -96,6 +96,27 @@ io.use((socket, next) => {
     });
 });
 
+// ---------------------------------------------------------
+// SOCKET.IO TOKEN EXPIRATION LIFECYCLE
+// ---------------------------------------------------------
+io.on('connection', (socket) => {
+    if (socket.user && socket.user.exp) {
+        const remainingMs = (socket.user.exp * 1000) - Date.now();
+        if (remainingMs <= 0) {
+            return socket.disconnect(true);
+        }
+
+        const expiryTimer = setTimeout(() => {
+            socket.emit('session_expired', { message: "Token expired. Session terminated." });
+            socket.disconnect(true);
+        }, remainingMs);
+
+        socket.on('disconnect', () => {
+            clearTimeout(expiryTimer);
+        });
+    }
+});
+
 const PORT = process.env.PORT || 3001;
 
 app.use(cors(corsOptions)); 
