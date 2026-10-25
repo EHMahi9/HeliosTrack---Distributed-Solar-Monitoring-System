@@ -240,6 +240,17 @@ app.post('/api/login', loginRateLimiter, async (req, res) => {
 });
 
 // ---------------------------------------------------------
+// TEMPORARY: Debug endpoint to inspect proxy hops on Render (revert after measurement)
+// ---------------------------------------------------------
+app.get('/api/debug-proxy', verifyToken, (req, res) => {
+    res.status(200).json({
+        ip: req.ip,
+        xForwardedFor: req.headers['x-forwarded-for'] || null,
+        ips: req.ips
+    });
+});
+
+// ---------------------------------------------------------
 // GET LATEST LOGS (🛠️ FIXED: Added verifyToken)
 // ---------------------------------------------------------
 app.get('/api/logs/latest', verifyToken, async (req, res) => {
