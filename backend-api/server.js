@@ -471,6 +471,11 @@ function startServer() {
     server.listen(PORT, () => {
         console.log(`HeliosTrack Backend API & WebSocket Server running on port ${PORT}`);
 
+        if (process.env.DISABLE_SIMULATOR === 'true') {
+            console.log("ℹ️ IoT Simulator disabled via DISABLE_SIMULATOR=true in .env");
+            return;
+        }
+
         const simulatorPath = path.join(__dirname, 'simulator.js');
         const proc = fork(simulatorPath);
         simulatorProcess = proc;
