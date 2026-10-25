@@ -117,6 +117,29 @@ function showLogin() {
     document.getElementById('passwordInput').value = '';
 }
 
+// Module-level guard to prevent concurrent auth failure triggers
+let isHandlingAuthFailure = false;
+
+// Central handler for expired or invalid JWT sessions across HTTP & WebSocket
+function handleAuthFailure(message = "Session expired. Please log in again.") {
+    if (isHandlingAuthFailure) return;
+    isHandlingAuthFailure = true;
+
+    disconnectSocket();
+    localStorage.removeItem('helios_token');
+    showLogin();
+
+    const errorText = document.getElementById('loginError');
+    if (errorText) {
+        errorText.innerText = message;
+        errorText.style.display = 'block';
+    }
+
+    setTimeout(() => {
+        isHandlingAuthFailure = false;
+    }, 1500);
+}
+
 // ==========================================
 // WEBSOCKET REAL-TIME STREAMING
 // ==========================================
@@ -142,37 +165,13 @@ function initWebSocket() {
     socket.on('connect_error', (err) => {
         console.warn("WebSocket connection failed:", err.message);
         if (err.message === "Unauthorized") {
-            disconnectSocket();
-            localStorage.removeItem('helios_token');
-            showLogin();
-            const errorText = document.getElementById('loginError');
-            if (errorText) {
-                errorText.innerText = "Session expired or unauthorized. Please log in again.";
-                errorText.style.display = 'block';
-            }
+            handleAuthFailure("Session expired or unauthorized. Please log in again.");
         }
     });
 
     socket.on('session_expired', (data) => {
         console.warn("Session expired via WebSocket event:", data ? data.message : "Expired");
-        disconnectSocket();
-        localStorage.removeItem('helios_token');
-        showLogin();
-        const errorText = document.getElementById('loginError');
-        if (errorText) {
-            errorText.innerText = "Session expired. Please log in again.";
-            errorText.style.display = 'block';
-        }
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                title: 'Session Expired',
-                text: 'Your session has expired. Please log in again.',
-                icon: 'warning',
-                confirmButtonColor: '#2DD4A7',
-                background: '#121A2B',
-                color: '#EAF0FB'
-            });
-        }
+        handleAuthFailure(data ? data.message : "Session expired. Please log in again.");
     });
 
     // Listen for real-time logs pushed from the server
@@ -213,10 +212,7 @@ async function fetchLogs(targetUrl) {
         });
         
         if (response.status === 401 || response.status === 403) {
-            localStorage.removeItem('helios_token');
-            disconnectSocket();
-            showLogin();
-            alert("Session expired. Please login again.");
+            handleAuthFailure("Session expired. Please log in again.");
             return;
         }
 
@@ -282,6 +278,11 @@ function setupFilterButtons() {
                 }
             });
 
+            if (response.status === 401 || response.status === 403) {
+                handleAuthFailure("Session expired. Please log in again.");
+                return;
+            }
+
             if (!response.ok) {
                 const errData = await response.json().catch(() => ({}));
                 throw new Error(errData.message || `Export failed with status ${response.status}`);
@@ -337,6 +338,11 @@ document.getElementById('addPanelBtn').addEventListener('click', async () => {
             },
             body: JSON.stringify({ panel_type: panelType })
         });
+
+        if (response.status === 401 || response.status === 403) {
+            handleAuthFailure("Session expired. Please log in again.");
+            return;
+        }
 
         const result = await response.json();
         
