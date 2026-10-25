@@ -189,7 +189,7 @@ function setupFilterButtons() {
             return;
         }
 
-        // FIXED: Using API_URL instead of localhost
+
         const filterUrl = `${API_URL}/api/logs/history?start=${start}&end=${end}`;
         fetchLogs(filterUrl); 
     });
@@ -200,8 +200,7 @@ function setupFilterButtons() {
         fetchLogs(`${API_URL}/api/logs/latest`); // FIXED: Using API_URL
     });
 
-    document.getElementById('exportBtn').addEventListener('click', () => {
-        // FIXED: Using API_URL instead of localhost
+    document.getElementById('exportBtn').addEventListener('click', async () => {
         const token = localStorage.getItem('helios_token');
         if (!token) {
             if (typeof Swal !== 'undefined') {
@@ -218,7 +217,44 @@ function setupFilterButtons() {
             }
             return;
         }
-        window.open(`${API_URL}/api/logs/export?token=${encodeURIComponent(token)}`, '_blank');
+
+        try {
+            const response = await fetch(`${API_URL}/api/logs/export`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.message || `Export failed with status ${response.status}`);
+            }
+
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = 'heliostrack_logs_report.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(downloadUrl);
+        } catch (err) {
+            console.error('Export error:', err);
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: 'Export Failed',
+                    text: err.message,
+                    icon: 'error',
+                    confirmButtonColor: '#2DD4A7',
+                    background: '#121A2B',
+                    color: '#EAF0FB'
+                });
+            } else {
+                alert(`Export failed: ${err.message}`);
+            }
+        }
     });
 }
 
