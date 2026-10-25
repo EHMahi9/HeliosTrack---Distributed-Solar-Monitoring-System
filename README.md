@@ -162,9 +162,9 @@ cd backend-api && node setupAdmin.js
 | `GET` | `/api/logs/latest` | Fetch the last 40 generation logs | Yes (JWT) |
 | `POST` | `/api/logs` | Receive data from IoT panels | Yes (API Key) |
 | `GET` | `/api/logs/history` | Filter logs by start and end date | Yes (JWT) |
-| `GET` | `/api/panels` | Fetch all registered solar panels | No |
-| `POST` | `/api/panels` | Register a new solar panel dynamically | No |
-| `GET` | `/api/logs/export` | Download complete historical data as CSV | No |
+| `GET` | `/api/panels` | Fetch all registered solar panels | Yes (JWT) |
+| `POST` | `/api/panels` | Register a new solar panel dynamically | Yes (JWT) |
+| `GET` | `/api/logs/export` | Download complete historical data as CSV | Yes (JWT) |
 
 ---
 
