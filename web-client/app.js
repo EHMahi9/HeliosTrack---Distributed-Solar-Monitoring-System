@@ -1,3 +1,14 @@
+// HTML Sanitization Helper to prevent XSS in dynamic HTML injections
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 let currentBatteryPercent = 50.0;
 const BATTERY_MAX = 100; // NEW: Maximum battery percentage limit
 const BATTERY_MIN = 0;   // NEW: Minimum battery percentage limit (just to be safe)
@@ -308,14 +319,18 @@ document.getElementById('addPanelBtn').addEventListener('click', async () => {
         const result = await response.json();
         
         if (result.success) {
+            const safePanelId = escapeHtml(result.panel_id);
+            const safePanelType = escapeHtml(panelType);
+            const safeSecret = escapeHtml(result.api_secret);
+
             Swal.fire({
                 title: 'Panel Registered!',
                 icon: 'success',
                 html: `
-                    <p style="margin-bottom: 12px; font-size: 14px;"><strong>Panel ID:</strong> ${result.panel_id} | <strong>Type:</strong> ${panelType}</p>
+                    <p style="margin-bottom: 12px; font-size: 14px;"><strong>Panel ID:</strong> ${safePanelId} | <strong>Type:</strong> ${safePanelType}</p>
                     <div style="background: rgba(0,0,0,0.35); border: 1px solid #2DD4A7; border-radius: 6px; padding: 10px; margin: 12px 0;">
                         <label style="font-size: 11px; color: #94A3B8; display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">API Secret (Hardware Key)</label>
-                        <input type="text" readonly value="${result.api_secret}" id="swalPanelSecret" 
+                        <input type="text" readonly value="${safeSecret}" id="swalPanelSecret" 
                             style="width: 100%; background: transparent; border: none; color: #2DD4A7; font-family: monospace; font-size: 14px; text-align: center; cursor: pointer; user-select: all;" 
                             onclick="this.select(); navigator.clipboard.writeText(this.value);" />
                     </div>
