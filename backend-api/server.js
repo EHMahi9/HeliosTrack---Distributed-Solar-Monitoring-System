@@ -72,9 +72,11 @@ app.use(express.json());
 // ---------------------------------------------------------
 const verifyToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
-    if (!authHeader) return res.status(403).json({ success: false, message: "No token provided!" });
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(403).json({ success: false, message: "No token provided!" });
+    }
     
-    const token = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : authHeader;
+    const token = authHeader.split(' ')[1];
     
 
     jwt.verify(token, JWT_SECRET, (err, decoded) => {
