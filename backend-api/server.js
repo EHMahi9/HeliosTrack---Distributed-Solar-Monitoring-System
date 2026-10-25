@@ -120,6 +120,16 @@ async function sendTelegramAlert(message) {
 // ---------------------------------------------------------
 const loginAttempts = new Map();
 
+// Clean up expired rate limiter entries periodically (every 5 minutes)
+setInterval(() => {
+    const now = Date.now();
+    for (const [ip, record] of loginAttempts.entries()) {
+        if (now > record.resetTime) {
+            loginAttempts.delete(ip);
+        }
+    }
+}, 5 * 60 * 1000).unref();
+
 const loginRateLimiter = (req, res, next) => {
     const ip = req.ip || req.connection.remoteAddress;
     const windowMs = 15 * 60 * 1000; 
@@ -171,6 +181,10 @@ app.post('/api/login', loginRateLimiter, async (req, res) => {
         }
 
         const user = users[0];
+
+        // Reset rate limiter attempts on successful login
+        const clientIp = req.ip || req.connection.remoteAddress;
+        loginAttempts.delete(clientIp);
 
         // 🛠️ FIXED: Uses the strict JWT_SECRET without the vulnerable fallback
         const token = jwt.sign(
