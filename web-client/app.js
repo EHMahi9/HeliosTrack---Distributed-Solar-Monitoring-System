@@ -140,6 +140,40 @@ function handleAuthFailure(message = "Session expired. Please log in again.") {
     }, 1500);
 }
 
+// Connection status indicator helper
+function updateConnectionUI(status) {
+    const pill = document.getElementById('connectionStatusPill');
+    const dot = document.getElementById('connectionStatusDot');
+    const text = document.getElementById('connectionStatusText');
+    if (!pill || !text) return;
+
+    if (status === 'live') {
+        pill.style.color = 'var(--accent-energy)';
+        pill.style.background = 'var(--accent-energy-soft)';
+        pill.style.borderColor = 'var(--accent-energy)';
+        if (dot) {
+            dot.style.background = 'var(--accent-energy)';
+            dot.style.display = 'block';
+        }
+        text.innerText = 'LIVE DATA STREAM';
+    } else if (status === 'reconnecting') {
+        pill.style.color = 'var(--accent-warn, #FFA53D)';
+        pill.style.background = 'rgba(255, 165, 61, 0.15)';
+        pill.style.borderColor = 'var(--accent-warn, #FFA53D)';
+        if (dot) {
+            dot.style.background = 'var(--accent-warn, #FFA53D)';
+            dot.style.display = 'block';
+        }
+        text.innerText = 'RECONNECTING...';
+    } else if (status === 'disconnected') {
+        pill.style.color = 'var(--text-muted, #8A96B3)';
+        pill.style.background = 'rgba(255, 255, 255, 0.05)';
+        pill.style.borderColor = 'var(--border-soft, #1c2a45)';
+        if (dot) dot.style.display = 'none';
+        text.innerText = 'OFFLINE';
+    }
+}
+
 // ==========================================
 // WEBSOCKET REAL-TIME STREAMING
 // ==========================================
@@ -152,21 +186,48 @@ function initWebSocket() {
         return;
     }
 
-    // Connect with JWT auth and bounded reconnection attempts
+    // Connect with JWT auth and resilient capped-backoff reconnection
     socket = io(API_URL, {
         auth: { token },
-        reconnectionAttempts: 3
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        randomizationFactor: 0.5
     });
 
     socket.on('connect', () => {
         console.log("Connected to Enterprise WebSocket Stream!");
+        updateConnectionUI('live');
     });
 
     socket.on('connect_error', (err) => {
         console.warn("WebSocket connection failed:", err.message);
         if (err.message === "Unauthorized") {
             handleAuthFailure("Session expired or unauthorized. Please log in again.");
+        } else {
+            // Network failure or cold start: show reconnecting status
+            updateConnectionUI('reconnecting');
         }
+    });
+
+    socket.on('disconnect', (reason) => {
+        console.warn("WebSocket disconnected:", reason);
+        if (reason === 'io server disconnect' || reason === 'io client disconnect') {
+            updateConnectionUI('disconnected');
+        } else {
+            // Automatic reconnection will trigger
+            updateConnectionUI('reconnecting');
+        }
+    });
+
+    socket.io.on('reconnect_attempt', () => {
+        updateConnectionUI('reconnecting');
+    });
+
+    socket.io.on('reconnect', () => {
+        console.log("WebSocket reconnected successfully!");
+        updateConnectionUI('live');
     });
 
     socket.on('session_expired', (data) => {
@@ -195,6 +256,7 @@ function disconnectSocket() {
         socket.disconnect();
         socket = null;
     }
+    updateConnectionUI('disconnected');
     // Reset session metric counters on logout
     sessionKwh = 0;
 }
