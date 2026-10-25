@@ -286,16 +286,22 @@ document.getElementById('addPanelBtn').addEventListener('click', async () => {
         
         if (result.success) {
             Swal.fire({
-                title: 'Success!',
-                text: `New Panel Added. ID: ${result.panel_id}\nType: ${panelType}`,
+                title: 'Panel Registered!',
                 icon: 'success',
-                confirmButtonText: 'Great!',
-                timer: 3000, 
-                timerProgressBar: true,
-                // 🛠️ FIXED: SweetAlert Dark Mode
+                html: `
+                    <p style="margin-bottom: 12px; font-size: 14px;"><strong>Panel ID:</strong> ${result.panel_id} | <strong>Type:</strong> ${panelType}</p>
+                    <div style="background: rgba(0,0,0,0.35); border: 1px solid #2DD4A7; border-radius: 6px; padding: 10px; margin: 12px 0;">
+                        <label style="font-size: 11px; color: #94A3B8; display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">API Secret (Hardware Key)</label>
+                        <input type="text" readonly value="${result.api_secret}" id="swalPanelSecret" 
+                            style="width: 100%; background: transparent; border: none; color: #2DD4A7; font-family: monospace; font-size: 14px; text-align: center; cursor: pointer; user-select: all;" 
+                            onclick="this.select(); navigator.clipboard.writeText(this.value);" />
+                    </div>
+                    <p style="color: #F59E0B; font-size: 12px; margin-top: 8px;">⚠️ <strong>Warning:</strong> Copy this secret now. It will not be shown again.</p>
+                `,
+                confirmButtonText: 'I have copied the secret',
+                confirmButtonColor: '#2DD4A7',
                 background: '#121A2B',
-                color: '#EAF0FB',
-                confirmButtonColor: '#2DD4A7'
+                color: '#EAF0FB'
             });
         } else {
             Swal.fire({

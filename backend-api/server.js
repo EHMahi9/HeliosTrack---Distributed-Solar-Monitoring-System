@@ -336,7 +336,7 @@ app.get('/api/logs/history', verifyToken, async (req, res) => {
 // ---------------------------------------------------------
 app.get('/api/panels', verifyToken, async (req, res) => {
     try {
-        const sql = 'SELECT panel_id, panel_type, api_secret FROM solar_panels';
+        const sql = 'SELECT panel_id, panel_type FROM solar_panels';
         const [panels] = await db.execute(sql);
         res.status(200).json({ success: true, data: panels });
     } catch (error) {
