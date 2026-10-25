@@ -413,12 +413,25 @@ app.get('/api/panels', verifyToken, async (req, res) => {
     }
 });
 
+const ALLOWED_PANEL_TYPES = [
+    'Monocrystalline 400W',
+    'Polycrystalline 350W',
+    'Thin-Film 300W'
+];
+
 app.post('/api/panels', verifyToken, async (req, res) => {
     try {
         const { panel_type } = req.body;
         
         if (!panel_type) {
             return res.status(400).json({ success: false, message: "Panel type is required" });
+        }
+
+        if (!ALLOWED_PANEL_TYPES.includes(panel_type)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: `Invalid panel type. Allowed types: ${ALLOWED_PANEL_TYPES.join(', ')}` 
+            });
         }
 
         const newApiSecret = 'helios_key_' + Math.random().toString(36).substr(2, 10);
