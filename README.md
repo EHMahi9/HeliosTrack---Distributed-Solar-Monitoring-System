@@ -1,4 +1,3 @@
-```markdown
 # HeliosTrack - Distributed Solar Monitoring System
 
 ![Status](https://img.shields.io/badge/Status-Live-success)
@@ -39,7 +38,7 @@ Built with scalability in mind, it seamlessly adapts to both local desktop envir
 *   Child Process (Background IoT Simulator)
 
 **Database & Deployment:**
-*   MySQL (Aiven Cloud)
+*   MySQL-compatible Serverless DB (TiDB Cloud on AWS)
 *   Vercel (Frontend Hosting)
 *   Render (Backend Hosting)
 
@@ -51,9 +50,8 @@ Follow these steps to run the project locally on your machine.
 
 ### 1. Clone the Repository
 ```bash
-git clone [https://github.com/your-username/heliostrack-distributed-solar-monitoring.git](https://github.com/your-username/heliostrack-distributed-solar-monitoring.git)
-cd heliostrack-distributed-solar-monitoring
-
+git clone https://github.com/EHMahi9/HeliosTrack---Distributed-Solar-Monitoring-System.git
+cd HeliosTrack---Distributed-Solar-Monitoring-System
 ```
 
 ### 2. Setup the Backend
@@ -63,29 +61,45 @@ Navigate to the backend directory and install dependencies:
 ```bash
 cd backend-api
 npm install
-
 ```
 
 Create a `.env` file in the `backend-api` folder and add the following variables:
 
 ```env
+# Server Configuration
 PORT=3001
-DB_HOST=your_aiven_mysql_host
+
+# Cloud Database Configuration (TiDB Cloud / MySQL)
+DB_HOST=your_tidb_cloud_host
+DB_PORT=4000
 DB_USER=your_db_username
-DB_PASS=your_db_password
-DB_NAME=your_db_name
-DB_PORT=your_db_port
+DB_PASSWORD=your_db_password
+DB_NAME=helios_track
+
+# Security & Authentication
 JWT_SECRET=your_super_secret_jwt_key
+ADMIN_EMAIL=admin@heliostrack.com
+ADMIN_PASSWORD=your_strong_admin_password
+
+# CORS Configuration (Optional)
+# Comma-separated list of additional allowed frontend origins
+ALLOWED_ORIGINS=https://your-custom-domain.com
+# Set to true to allow 'null' origin (required when running via file:// or Electron loadFile)
+ALLOW_NULL_ORIGIN=false
+
+# IoT Simulator Configuration (Optional)
+# Set to true to disable background telemetry simulator during local development/tests
+DISABLE_SIMULATOR=false
+
+# Telegram Notifications (Optional)
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
 TELEGRAM_CHAT_ID=your_telegram_chat_id_here
-
 ```
 
-Start the backend server (The IoT Simulator will auto-start):
+Start the backend server (The IoT Simulator will auto-start unless `DISABLE_SIMULATOR=true` is configured in `.env`):
 
 ```bash
 npm start
-
 ```
 
 ### 3. Setup the Frontend
@@ -125,9 +139,9 @@ Render Dashboard → আপনার Web Service → **Logs** section এ যা
 নিচের error গুলো খুঁজুন:
 
 | Error | মানে | সমাধান |
-|-------|------|--------|
+|---|---|---|
 | `JWT_SECRET is not defined` | JWT_SECRET সেট করা নেই | Render Dashboard → Environment → `JWT_SECRET` যোগ করুন |
-| `ECONNREFUSED` | Database connect হচ্ছে না | `DB_HOST`, `DB_USER`, `DB_PASS` চেক করুন |
+| `ECONNREFUSED` | Database connect হচ্ছে না | `DB_HOST`, `DB_USER`, `DB_PASSWORD` চেক করুন |
 | `Admin user created` | Admin ready ✅ | কিছু করতে হবে না |
 
 #### ধাপ 3️⃣: Admin User তৈরি করুন
@@ -143,9 +157,8 @@ cd backend-api && node setupAdmin.js
 - দেখুন response status `429` কিনা
 - Render service restart দিলে এই limit রিসেট হবে
 
-#### ধাপ 5️⃣: CORS Error
-আমরা `server.js` এ Dynamic CORS fix করে দিয়েছি — এখন যেকোনো Vercel URL কাজ করবে।
-যদি এখনো `Blocked by CORS` দেখে, তাহলে RENDER LOGS থেকে error টি কপি করে জানান।
+#### ধাপ 5️⃣: CORS Policy
+`server.js` এ কঠোর CORS পলিসি কনফিগার করা আছে — শুধু অফিসিয়াল প্রোডাকশন ডোমেইন (`https://helios-track-distributed-solar-moni.vercel.app`) এবং অনুমোদিত লোকালহোস্ট অরিজিনগুলো কল করতে পারে। যদি অন্য কোনো ডোমেইন থেকে অ্যাক্সেস করার প্রয়োজন হয়, Render Dashboard এর Environment Variables-এ `ALLOWED_ORIGINS` এ সেই ডোমেইন কমা দিয়ে যোগ করুন।
 
 #### ধাপ 6️⃣: একদম শেষ চেষ্টা
 সব কিছু চেক করার পরেও যদি কাজ না করে:
@@ -179,7 +192,3 @@ cd backend-api && node setupAdmin.js
 ## License
 
 This project is licensed under the MIT License. Feel free to use, modify, and distribute it for educational and portfolio purposes.
-
-```
-
-```
