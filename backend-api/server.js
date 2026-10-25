@@ -62,6 +62,28 @@ const io = new Server(server, {
     cors: corsOptions
 });
 
+// ---------------------------------------------------------
+// SOCKET.IO AUTHENTICATION MIDDLEWARE
+// ---------------------------------------------------------
+io.use((socket, next) => {
+    const token = socket.handshake.auth?.token || 
+                  (socket.handshake.headers?.authorization && socket.handshake.headers.authorization.startsWith('Bearer ')
+                      ? socket.handshake.headers.authorization.split(' ')[1]
+                      : null);
+
+    if (!token) {
+        return next(new Error("Unauthorized"));
+    }
+
+    jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }, (err, decoded) => {
+        if (err) {
+            return next(new Error("Unauthorized"));
+        }
+        socket.user = decoded;
+        next();
+    });
+});
+
 const PORT = process.env.PORT || 3001;
 
 app.use(cors(corsOptions)); 
@@ -77,9 +99,8 @@ const verifyToken = (req, res, next) => {
     }
     
     const token = authHeader.split(' ')[1];
-    
 
-    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+    jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }, (err, decoded) => {
         if (err) return res.status(401).json({ success: false, message: "Unauthorized!" });
         req.user = decoded;
         next();

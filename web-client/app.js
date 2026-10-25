@@ -112,11 +112,34 @@ function showLogin() {
 function initWebSocket() {
     if (socket) return; // Already connected
 
-    // FIXED: Using API_URL instead of localhost
-    socket = io(API_URL);
+    const token = localStorage.getItem('helios_token');
+    if (!token) {
+        console.warn("WebSocket connection skipped: No token found.");
+        return;
+    }
+
+    // Connect with JWT auth and bounded reconnection attempts
+    socket = io(API_URL, {
+        auth: { token },
+        reconnectionAttempts: 3
+    });
 
     socket.on('connect', () => {
         console.log("Connected to Enterprise WebSocket Stream!");
+    });
+
+    socket.on('connect_error', (err) => {
+        console.warn("WebSocket connection failed:", err.message);
+        if (err.message === "Unauthorized") {
+            disconnectSocket();
+            localStorage.removeItem('helios_token');
+            showLogin();
+            const errorText = document.getElementById('loginError');
+            if (errorText) {
+                errorText.innerText = "Session expired or unauthorized. Please log in again.";
+                errorText.style.display = 'block';
+            }
+        }
     });
 
     // Listen for real-time logs pushed from the server
