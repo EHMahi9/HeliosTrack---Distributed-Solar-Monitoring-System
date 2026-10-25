@@ -26,36 +26,48 @@ const ALERT_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes in milliseconds
 const app = express();
 const server = http.createServer(app);
 
-// 🛠️ FIXED: Dynamic CORS - Supports ALL Vercel deployments & custom domains
-const allowedOrigins = [
-    'http://localhost:3000', 
-    'http://localhost:5000', 
-    'http://localhost:3001', 
-    'https://helios-track-distributed-solar-moni.vercel.app',
-    /https:\/\/.*\.vercel\.app$/,   // 🆕 Matches ANY Vercel preview/prod domain
-    /https:\/\/.*vercel\.app$/
+// ---------------------------------------------------------
+// CORS CONFIGURATION
+// ---------------------------------------------------------
+const PRODUCTION_ORIGIN = 'https://helios-track-distributed-solar-moni.vercel.app';
+const localhostOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:5000',
+    'http://localhost:5500',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:3001',
+    'http://127.0.0.1:5000',
+    'http://127.0.0.1:5500'
 ];
 
-// 🛠️ FIXED: Dynamic CORS validation function
+const extraOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
+    : [];
+
+const allowedOrigins = [PRODUCTION_ORIGIN, ...localhostOrigins, ...extraOrigins];
+
 const corsOptions = {
     origin: function (origin, callback) {
-        // Allow requests with no origin (server-to-server, mobile apps, curl)
+        // Requests with no origin (curl, server-to-server, mobile apps)
         if (!origin) return callback(null, true);
-        
-        const allowed = allowedOrigins.some(allowedOrigin => {
-            if (allowedOrigin instanceof RegExp) {
-                return allowedOrigin.test(origin);
+
+        // 'null' origin is only permitted when ALLOW_NULL_ORIGIN is explicitly set to 'true'
+        if (origin === 'null') {
+            if (process.env.ALLOW_NULL_ORIGIN === 'true') {
+                return callback(null, true);
             }
-            return allowedOrigin === origin;
-        });
-        
-        if (allowed) {
-            callback(null, true);
-        } else {
-            console.warn(`⚠️ CORS blocked origin: ${origin}`);
-            callback(null, true); // 🛡️ Changed to allow instead of block for dev safety
+            return callback(null, false);
         }
-    }
+
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+
+        // Reject unknown origin gracefully without throwing an unhandled Error
+        return callback(null, false);
+    },
+    credentials: true
 };
 
 const io = new Server(server, {         
