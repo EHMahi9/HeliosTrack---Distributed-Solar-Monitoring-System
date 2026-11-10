@@ -1,5 +1,6 @@
 // simulator.js - Acts as a Dynamic Virtual IoT Fleet
-const API_URL_LOGS = 'http://localhost:3001/api/logs';
+const port = process.env.PORT || 3001;
+const API_URL_LOGS = process.env.SIMULATOR_TARGET_URL || `http://127.0.0.1:${port}/api/logs`;
 
 let activePanels = []; // Updated in real-time via IPC from parent process
 
@@ -12,30 +13,29 @@ process.on('message', (message) => {
 });
 
 // Request the initial panel list from the parent process on startup
-process.send({ type: 'request_panels' });
+if (process.send) {
+    process.send({ type: 'request_panels' });
+}
 
 // 2. Send log using the specific API Key for each panel
 async function sendLog(panel_id, api_secret, voltage, current_amps, power_watts) {
     try {
-        const response = await fetch(API_URL_LOGS, {
+        await fetch(API_URL_LOGS, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'x-api-key': api_secret // NEW: Using the dynamic secret key from the database
+                'x-api-key': api_secret
             },
             body: JSON.stringify({ panel_id, voltage, current_amps, power_watts })
         });
-        // const result = await response.json();
     } catch (error) {
-        console.error(`Failed to send data for panel ${panel_id}:`, error);
+        console.error(`Failed to send data for panel ${panel_id}:`, error.message);
     }
 }
 
 // 3. Generate data for all dynamically loaded panels
 async function generateAndSendLog() {
-    // Panel list is updated in real-time via IPC — no need to fetch again
-
-    if (activePanels.length === 0) return; // If no panels exist, do nothing
+    if (activePanels.length === 0) return;
 
     for (const panel of activePanels) {
         let voltage;
@@ -43,24 +43,27 @@ async function generateAndSendLog() {
         // Base voltage logic based on panel_id to keep variations
         const baseVoltage = 23.5 + (panel.panel_id % 2); 
         
-        if (Math.random() < 0.4) {
-            voltage = 17.0 + (Math.random() * 2.5); // CRITICAL ALARM
+        // Occasional realistic dips/spikes
+        const rand = Math.random();
+        if (rand < 0.15) {
+            voltage = 17.5 + (Math.random() * 2.0); // Critical alarm dip
+        } else if (rand > 0.95) {
+            voltage = 25.2 + (Math.random() * 1.5); // Spike warning
         } else {
-            voltage = baseVoltage + (Math.random() * 2 - 1); // Normal voltage
+            voltage = baseVoltage + (Math.random() * 2 - 1); // Normal fluctuation
         }
 
-        const current_amps = 8.0 + (Math.random() * 0.5 - 0.25);
+        const current_amps = 8.0 + (Math.random() * 0.6 - 0.3);
         const power_watts = voltage * current_amps;
 
         const voltageVal = parseFloat(voltage.toFixed(2));
         const currentVal = parseFloat(current_amps.toFixed(2));
         const powerVal = parseFloat(power_watts.toFixed(2));
 
-        // Send data using the panel's unique ID and unique API Secret
         await sendLog(panel.panel_id, panel.api_secret, voltageVal, currentVal, powerVal);
     }
 }
 
-console.log("Dynamic Multi-Site Fleet Simulator started...");
+console.log(`Dynamic Multi-Site Fleet Simulator started (target: ${API_URL_LOGS})...`);
 // Run the generator every 5 seconds
 setInterval(generateAndSendLog, 5000);

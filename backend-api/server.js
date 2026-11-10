@@ -1,27 +1,26 @@
 const express = require('express');
-const http = require('http');           
-const { Server } = require('socket.io'); 
+const http = require('http');
+const { Server } = require('socket.io');
 const cors = require('cors');
 const path = require('path');
 const dotenv = require('dotenv');
-const bcrypt = require('bcrypt');       
-const jwt = require('jsonwebtoken');    
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 const { fork } = require('child_process');
 
 dotenv.config({ path: path.join(__dirname, '.env') });
 
-// FIXED: Removed hardcoded fallback. The app will crash if .env is missing.
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
     console.error("🚨 FATAL ERROR: JWT_SECRET is not defined in .env file.");
     process.exit(1);
 }
 
-const db = require('./config/db'); 
+const db = require('./config/db');
 
-// 🛠️ FIXED: Telegram Alert Cooldown — prevents spam (5 min cooldown per panel)
+// Telegram Alert Cooldown — prevents spam (5 min cooldown per panel)
 const lastAlertTimes = {};
-const ALERT_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes in milliseconds
+const ALERT_COOLDOWN_MS = 5 * 60 * 1000;
 
 const app = express();
 const server = http.createServer(app);
@@ -33,11 +32,15 @@ const PRODUCTION_ORIGIN = 'https://helios-track-distributed-solar-moni.vercel.ap
 const localhostOrigins = [
     'http://localhost:3000',
     'http://localhost:3001',
+    'http://localhost:3002',
     'http://localhost:5000',
+    'http://localhost:5173',
     'http://localhost:5500',
     'http://127.0.0.1:3000',
     'http://127.0.0.1:3001',
+    'http://127.0.0.1:3002',
     'http://127.0.0.1:5000',
+    'http://127.0.0.1:5173',
     'http://127.0.0.1:5500'
 ];
 
@@ -49,10 +52,8 @@ const allowedOrigins = [PRODUCTION_ORIGIN, ...localhostOrigins, ...extraOrigins]
 
 const corsOptions = {
     origin: function (origin, callback) {
-        // Requests with no origin (curl, server-to-server, mobile apps)
         if (!origin) return callback(null, true);
 
-        // 'null' origin is only permitted when ALLOW_NULL_ORIGIN is explicitly set to 'true'
         if (origin === 'null') {
             if (process.env.ALLOW_NULL_ORIGIN === 'true') {
                 return callback(null, true);
@@ -60,17 +61,17 @@ const corsOptions = {
             return callback(null, false);
         }
 
-        if (allowedOrigins.includes(origin)) {
+        // Allow exact matches or Vercel preview URLs
+        if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
             return callback(null, true);
         }
 
-        // Reject unknown origin gracefully without throwing an unhandled Error
         return callback(null, false);
     },
     credentials: true
 };
 
-const io = new Server(server, {         
+const io = new Server(server, {
     cors: corsOptions
 });
 
@@ -78,7 +79,7 @@ const io = new Server(server, {
 // SOCKET.IO AUTHENTICATION MIDDLEWARE
 // ---------------------------------------------------------
 io.use((socket, next) => {
-    const token = socket.handshake.auth?.token || 
+    const token = socket.handshake.auth?.token ||
                   (socket.handshake.headers?.authorization && socket.handshake.headers.authorization.startsWith('Bearer ')
                       ? socket.handshake.headers.authorization.split(' ')[1]
                       : null);
@@ -97,9 +98,19 @@ io.use((socket, next) => {
 });
 
 // ---------------------------------------------------------
-// SOCKET.IO TOKEN EXPIRATION LIFECYCLE
+// SOCKET.IO CONNECTION & USER-ROOM ROUTING
 // ---------------------------------------------------------
 io.on('connection', (socket) => {
+    const userId = socket.user?.userId;
+    if (userId) {
+        const roomName = `user_${userId}`;
+        socket.join(roomName);
+        if (socket.user.role === 'admin') {
+            socket.join('admin_room');
+        }
+        console.log(`🔌 Socket ${socket.id} joined ${roomName} (role: ${socket.user.role || 'user'})`);
+    }
+
     if (socket.user && socket.user.exp) {
         const remainingMs = (socket.user.exp * 1000) - Date.now();
         if (remainingMs <= 0) {
@@ -119,18 +130,18 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3001;
 
-app.use(cors(corsOptions)); 
-app.use(express.json()); 
+app.use(cors(corsOptions));
+app.use(express.json());
 
 // ---------------------------------------------------------
-// FIXED: Middleware to protect routes (JWT Authentication)
+// JWT AUTHENTICATION ROUTE MIDDLEWARE
 // ---------------------------------------------------------
 const verifyToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(403).json({ success: false, message: "No token provided!" });
     }
-    
+
     const token = authHeader.split(' ')[1];
 
     jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }, (err, decoded) => {
@@ -149,7 +160,7 @@ async function sendTelegramAlert(message) {
 
     if (!token || !chatId) {
         console.log("Telegram credentials missing in .env, skipping alert.");
-        return; 
+        return;
     }
 
     const url = `https://api.telegram.org/bot${token}/sendMessage`;
@@ -170,11 +181,10 @@ async function sendTelegramAlert(message) {
 }
 
 // ---------------------------------------------------------
-// PHASE 1: ANTI-BRUTE FORCE RATE LIMITER MIDDLEWARE
+// ANTI-BRUTE FORCE RATE LIMITER MIDDLEWARE
 // ---------------------------------------------------------
 const loginAttempts = new Map();
 
-// Clean up expired rate limiter entries periodically (every 5 minutes)
 setInterval(() => {
     const now = Date.now();
     for (const [ip, record] of loginAttempts.entries()) {
@@ -186,8 +196,8 @@ setInterval(() => {
 
 const loginRateLimiter = (req, res, next) => {
     const ip = req.ip || req.connection.remoteAddress;
-    const windowMs = 15 * 60 * 1000; 
-    const maxAttempts = 5;          
+    const windowMs = 15 * 60 * 1000;
+    const maxAttempts = 10;
     const currentTime = Date.now();
 
     if (!loginAttempts.has(ip)) {
@@ -216,18 +226,21 @@ const loginRateLimiter = (req, res, next) => {
 };
 
 // ---------------------------------------------------------
-// SECURE LOGIN API ENDPOINT
+// 1. AUTH: SECURE LOGIN API (Supports Admin & Multi-User)
 // ---------------------------------------------------------
-app.post('/api/login', loginRateLimiter, async (req, res) => {
+app.post(['/api/login', '/api/auth/login'], loginRateLimiter, async (req, res) => {
     try {
         const { email, password } = req.body;
+        if (!email || !password) {
+            return res.status(400).json({ success: false, message: "Email and password are required" });
+        }
 
-        const [users] = await db.execute('SELECT * FROM users WHERE email = ?', [email]);
-        
-        //FIXED: Timing Leak - Always run bcrypt.compare to prevent email enumeration
-        const dummyHash = '$2b$10$CYZcjYFFgucPdueaB9OUMuL93dcAfEiLuIv5AHDQIbO1tb7l/yuGi'; 
+        const [users] = await db.execute('SELECT * FROM users WHERE email = ?', [email.toLowerCase().trim()]);
+
+        // Timing Leak Prevention: Always run bcrypt.compare to prevent email enumeration
+        const dummyHash = '$2b$10$CYZcjYFFgucPdueaB9OUMuL93dcAfEiLuIv5AHDQIbO1tb7l/yuGi';
         const hashToCompare = users.length > 0 ? users[0].password : dummyHash;
-        
+
         const isMatch = await bcrypt.compare(password, hashToCompare);
 
         if (users.length === 0 || !isMatch) {
@@ -236,22 +249,32 @@ app.post('/api/login', loginRateLimiter, async (req, res) => {
 
         const user = users[0];
 
-        // Reset rate limiter attempts on successful login
         const clientIp = req.ip || req.connection.remoteAddress;
         loginAttempts.delete(clientIp);
 
-        // 🛠️ FIXED: Uses the strict JWT_SECRET without the vulnerable fallback
         const token = jwt.sign(
-            { userId: user.id, role: user.role },
+            {
+                userId: user.id,
+                role: user.role,
+                email: user.email,
+                fullName: user.full_name || 'Solar Operator'
+            },
             JWT_SECRET,
-            { expiresIn: '2h' }
+            { expiresIn: '7d' }
         );
 
         res.status(200).json({
             success: true,
             message: "Login successful",
             token: token,
-            role: user.role
+            role: user.role,
+            user: {
+                id: user.id,
+                email: user.email,
+                full_name: user.full_name || 'Solar Operator',
+                role: user.role,
+                is_demo: Boolean(user.is_demo)
+            }
         });
 
     } catch (error) {
@@ -261,18 +284,253 @@ app.post('/api/login', loginRateLimiter, async (req, res) => {
 });
 
 // ---------------------------------------------------------
-// GET LATEST LOGS (🛠️ FIXED: Added verifyToken)
+// 2. AUTH: REGISTER NEW USER (With Automatic Starter Solar Panels)
+// ---------------------------------------------------------
+app.post(['/api/register', '/api/auth/register'], async (req, res) => {
+    try {
+        const { email, password, full_name } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({ success: false, message: "Email and password are required." });
+        }
+
+        const cleanEmail = email.toLowerCase().trim();
+        if (!cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+            return res.status(400).json({ success: false, message: "Please provide a valid email address." });
+        }
+
+        if (password.length < 6) {
+            return res.status(400).json({ success: false, message: "Password must be at least 6 characters long." });
+        }
+
+        const [existing] = await db.execute('SELECT id FROM users WHERE email = ?', [cleanEmail]);
+        if (existing.length > 0) {
+            return res.status(409).json({ success: false, message: "An account with this email already exists." });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+        const displayName = (full_name && full_name.trim()) || cleanEmail.split('@')[0];
+
+        const [userResult] = await db.execute(
+            'INSERT INTO users (email, password, role, full_name, is_demo) VALUES (?, ?, ?, ?, ?)',
+            [cleanEmail, hashedPassword, 'user', displayName, false]
+        );
+        const newUserId = userResult.insertId;
+
+        // Auto-provision 2 starter solar panels so the new user immediately sees live simulated data
+        const secret1 = 'helios_key_' + Math.random().toString(36).substring(2, 12);
+        const secret2 = 'helios_key_' + Math.random().toString(36).substring(2, 12);
+
+        await db.execute(
+            'INSERT INTO solar_panels (user_id, panel_name, panel_type, api_secret) VALUES (?, ?, ?, ?), (?, ?, ?, ?)',
+            [
+                newUserId, 'Main Rooftop Array', 'Monocrystalline 400W', secret1,
+                newUserId, 'Secondary Carport Array', 'Polycrystalline 350W', secret2
+            ]
+        );
+
+        // Seed default settings
+        await db.execute(
+            'INSERT INTO user_settings (user_id, cost_per_kwh, co2_per_kwh, currency_symbol, simulation_enabled) VALUES (?, 0.15, 0.40, "$", true) ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP',
+            [newUserId]
+        );
+
+        // Notify simulator to start feeding telemetry for new panels
+        await sendPanelsToSimulator();
+
+        // 🔔 Send Telegram notification for new operator registration
+        const newAccountTelegram = `🎉 *NEW OPERATOR REGISTERED*\n\n*Name:* ${displayName}\n*Email:* ${cleanEmail}\n*Account ID:* #${newUserId}\n*Time:* ${new Date().toLocaleString()}\n*Fleet:* 2 Starter Strings Provisioned`;
+        sendTelegramAlert(newAccountTelegram).catch(() => {});
+
+        const token = jwt.sign(
+            {
+                userId: newUserId,
+                role: 'user',
+                email: cleanEmail,
+                fullName: displayName
+            },
+            JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        res.status(201).json({
+            success: true,
+            message: "Registration successful! Welcome to HeliosTrack.",
+            token: token,
+            role: 'user',
+            user: {
+                id: newUserId,
+                email: cleanEmail,
+                full_name: displayName,
+                role: 'user',
+                is_demo: false
+            }
+        });
+
+    } catch (error) {
+        console.error("Registration error:", error);
+        res.status(500).json({ success: false, message: "Internal server error during registration." });
+    }
+});
+
+// ---------------------------------------------------------
+// 3. AUTH: 1-CLICK INSTANT SHOWCASE DEMO ACCESS
+// ---------------------------------------------------------
+app.all(['/api/demo', '/api/auth/demo'], async (req, res) => {
+    try {
+        let [demoUsers] = await db.execute('SELECT * FROM users WHERE email = ?', ['demo@heliostrack.com']);
+        let demoUser;
+
+        if (demoUsers.length === 0) {
+            const salt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash('HeliosDemo2026!', salt);
+            const [insert] = await db.execute(
+                'INSERT INTO users (email, password, role, full_name, is_demo) VALUES (?, ?, "demo", "Showcase Operator", TRUE)',
+                ['demo@heliostrack.com', hashedPassword]
+            );
+            const [created] = await db.execute('SELECT * FROM users WHERE id = ?', [insert.insertId]);
+            demoUser = created[0];
+
+            await db.execute(
+                'INSERT INTO solar_panels (user_id, panel_name, panel_type, api_secret) VALUES (?, ?, ?, ?), (?, ?, ?, ?)',
+                [
+                    demoUser.id, 'Demo Rooftop Array', 'Monocrystalline 400W', 'helios_demo_key_mono',
+                    demoUser.id, 'Demo Ground Mount', 'Polycrystalline 350W', 'helios_demo_key_poly'
+                ]
+            );
+            await sendPanelsToSimulator();
+        } else {
+            demoUser = demoUsers[0];
+        }
+
+        const token = jwt.sign(
+            {
+                userId: demoUser.id,
+                role: demoUser.role,
+                email: demoUser.email,
+                fullName: demoUser.full_name || 'Showcase Operator',
+                isDemo: true
+            },
+            JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+
+        res.status(200).json({
+            success: true,
+            message: "Showcase Demo session initialized",
+            token: token,
+            role: 'demo',
+            user: {
+                id: demoUser.id,
+                email: demoUser.email,
+                full_name: demoUser.full_name || 'Showcase Operator',
+                role: 'demo',
+                is_demo: true
+            }
+        });
+    } catch (error) {
+        console.error("Demo session error:", error);
+        res.status(500).json({ success: false, message: "Failed to initialize showcase demo." });
+    }
+});
+
+// ---------------------------------------------------------
+// 4. AUTH: CURRENT USER PROFILE
+// ---------------------------------------------------------
+app.get('/api/auth/me', verifyToken, async (req, res) => {
+    try {
+        const [users] = await db.execute(
+            'SELECT id, email, full_name, role, is_demo, created_at FROM users WHERE id = ?',
+            [req.user.userId]
+        );
+
+        if (users.length === 0) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        const [settings] = await db.execute(
+            'SELECT cost_per_kwh, co2_per_kwh, currency_symbol, simulation_enabled FROM user_settings WHERE user_id = ?',
+            [req.user.userId]
+        );
+
+        res.status(200).json({
+            success: true,
+            user: {
+                ...users[0],
+                is_demo: Boolean(users[0].is_demo)
+            },
+            settings: settings[0] || {
+                cost_per_kwh: 0.15,
+                co2_per_kwh: 0.40,
+                currency_symbol: '$',
+                simulation_enabled: true
+            }
+        });
+    } catch (error) {
+        console.error("Auth me error:", error);
+        res.status(500).json({ success: false, message: "Failed to load user profile." });
+    }
+});
+
+// ---------------------------------------------------------
+// 5. USER SETTINGS API (Tariff, CO2, Currency)
+// ---------------------------------------------------------
+app.get('/api/user/settings', verifyToken, async (req, res) => {
+    try {
+        const [settings] = await db.execute('SELECT * FROM user_settings WHERE user_id = ?', [req.user.userId]);
+        if (settings.length === 0) {
+            return res.status(200).json({
+                success: true,
+                settings: { cost_per_kwh: 0.15, co2_per_kwh: 0.40, currency_symbol: '$', simulation_enabled: true }
+            });
+        }
+        res.status(200).json({ success: true, settings: settings[0] });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Failed to fetch settings" });
+    }
+});
+
+app.put('/api/user/settings', verifyToken, async (req, res) => {
+    try {
+        const { cost_per_kwh, co2_per_kwh, currency_symbol, simulation_enabled } = req.body;
+        await db.execute(
+            `INSERT INTO user_settings (user_id, cost_per_kwh, co2_per_kwh, currency_symbol, simulation_enabled) 
+             VALUES (?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE 
+                cost_per_kwh = VALUES(cost_per_kwh),
+                co2_per_kwh = VALUES(co2_per_kwh),
+                currency_symbol = VALUES(currency_symbol),
+                simulation_enabled = VALUES(simulation_enabled)`,
+            [
+                req.user.userId,
+                cost_per_kwh !== undefined ? parseFloat(cost_per_kwh) : 0.15,
+                co2_per_kwh !== undefined ? parseFloat(co2_per_kwh) : 0.40,
+                currency_symbol || '$',
+                simulation_enabled !== undefined ? Boolean(simulation_enabled) : true
+            ]
+        );
+        res.status(200).json({ success: true, message: "Settings updated successfully" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Failed to update settings" });
+    }
+});
+
+// ---------------------------------------------------------
+// 6. GET LATEST LOGS (USER-SCOPED)
 // ---------------------------------------------------------
 app.get('/api/logs/latest', verifyToken, async (req, res) => {
     try {
+        const userId = req.user.userId;
         const sql = `
             SELECT 
-                g.log_id, g.voltage, g.current_amps, g.power_watts, g.recorded_at, p.panel_type
+                g.log_id, g.panel_id, p.panel_name, p.panel_type, g.voltage, g.current_amps, g.power_watts, g.recorded_at
             FROM generation_logs g
             JOIN solar_panels p ON g.panel_id = p.panel_id
-            ORDER BY g.recorded_at DESC LIMIT 40
+            WHERE p.user_id = ?
+            ORDER BY g.recorded_at DESC LIMIT 50
         `;
-        const [rows] = await db.execute(sql);
+        const [rows] = await db.execute(sql, [userId]);
         res.status(200).json({ success: true, count: rows.length, data: rows });
     } catch (error) {
         console.error("Database query failed:", error);
@@ -281,71 +539,73 @@ app.get('/api/logs/latest', verifyToken, async (req, res) => {
 });
 
 // ---------------------------------------------------------
-// SECURED IoT LOGS ENDPOINT + WEBSOCKET + TELEGRAM ALERTS
+// 7. SECURED IoT LOGS ENDPOINT + TARGETED USER WEBSOCKET + TELEGRAM ALERTS
 // ---------------------------------------------------------
 app.post('/api/logs', async (req, res) => {
     try {
         const { panel_id, voltage, current_amps, power_watts } = req.body;
-        
-        // FIXED: Input Validation added to prevent SQL errors or crashes
+
         if (!panel_id || isNaN(voltage) || isNaN(current_amps) || isNaN(power_watts)) {
             return res.status(400).json({ success: false, message: "Invalid or missing data payload." });
         }
-        
+
         const apiKey = req.headers['x-api-key'];
         if (!apiKey) {
             return res.status(401).json({ success: false, message: "Unauthorized: Missing API Key" });
         }
 
-        const [panels] = await db.execute(
-            'SELECT * FROM solar_panels WHERE panel_id = ? AND api_secret = ?', 
-            [panel_id, apiKey]
-        );
+        const [panels] = await db.execute(`
+            SELECT p.panel_id, p.panel_name, p.panel_type, p.user_id, u.email, u.full_name, u.role, u.is_demo
+            FROM solar_panels p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.panel_id = ? AND p.api_secret = ?
+        `, [panel_id, apiKey]);
 
         if (panels.length === 0) {
             return res.status(403).json({ success: false, message: "Forbidden: Invalid API Key for this panel" });
         }
 
-        const panel_type = panels[0].panel_type; 
+        const panel = panels[0];
+        const panel_type = panel.panel_type;
+        const panel_name = panel.panel_name || panel_type;
+        const operatorLabel = panel.is_demo 
+            ? `Showcase Demo (Account #${panel.user_id})` 
+            : `${panel.full_name || 'Operator'} (${panel.email}, ID #${panel.user_id})`;
+
         let alertTriggered = false;
         let alertMessage = "";
 
         if (voltage < 20.0) {
             alertTriggered = true;
             alertMessage = `CRITICAL ALARM: Voltage dropped to ${voltage}V!`;
-            console.log('\x1b[31m%s\x1b[0m', alertMessage); 
-            
-            const telegramMsg = `🚨 *HELIOSTRACK CRITICAL ALARM*\n\n*Panel:* ${panel_type} (ID: ${panel_id})\n*Voltage:* ${voltage}V (Below safe threshold!)\n*Power:* ${power_watts}W\n*Time:* ${new Date().toLocaleTimeString()}`;
-            // 🛠️ FIXED: Cooldown check — only send Telegram alert every 5 mins per panel
+            console.log('\x1b[31m%s\x1b[0m', alertMessage);
+
+            const telegramMsg = `🚨 *HELIOSTRACK CRITICAL ALARM*\n\n*Account:* ${operatorLabel}\n*Panel String:* ${panel_name} (ID: #${panel_id})\n*Cell Type:* ${panel_type}\n*Voltage:* ${voltage}V (Below 20.0V safe threshold!)\n*Power:* ${power_watts}W | *Current:* ${current_amps}A\n*Time:* ${new Date().toLocaleString()}`;
             const now = Date.now();
             const lastAlertTime = lastAlertTimes[panel_id] || 0;
-            
-            if (now - lastAlertTime > ALERT_COOLDOWN_MS) {
+            // Only send Telegram alert if this is the Admin's own panel (user_id === 1)
+            // Demo accounts and other operators will NOT spam your personal Telegram!
+            const isOwnerPanel = panel.user_id === 1 && !panel.is_demo;
+
+            if (isOwnerPanel && now - lastAlertTime > ALERT_COOLDOWN_MS) {
                 await sendTelegramAlert(telegramMsg);
                 lastAlertTimes[panel_id] = now;
-                console.log(`📨 Telegram alert sent for panel ${panel_id}. Cooldown 5min started.`);
-            } else {
-                const remaining = Math.ceil((ALERT_COOLDOWN_MS - (now - lastAlertTime)) / 1000);
-                console.log(`🔇 Suppressed alert for panel ${panel_id} (cooldown ${remaining}s left).`);
+                console.log(`📨 Telegram alert sent for your personal panel ${panel_id}. Cooldown 5min started.`);
             }
-
         } else if (voltage > 25.0) {
             alertTriggered = true;
             alertMessage = `WARNING: Voltage spike detected at ${voltage}V!`;
-            console.log('\x1b[33m%s\x1b[0m', alertMessage); 
-            
-            // 🛠️ FIXED: Same cooldown for spike warnings
+            console.log('\x1b[33m%s\x1b[0m', alertMessage);
+
             const now = Date.now();
             const lastAlertTime = lastAlertTimes[panel_id] || 0;
-            
-            if (now - lastAlertTime > ALERT_COOLDOWN_MS) {
-                const telegramMsg = `⚠️ *HELIOSTRACK VOLTAGE SPIKE*\n\n*Panel:* ${panel_type} (ID: ${panel_id})\n*Voltage:* ${voltage}V (Spike detected!)\n*Power:* ${power_watts}W\n*Time:* ${new Date().toLocaleTimeString()}`;
+            const isOwnerPanel = panel.user_id === 1 && !panel.is_demo;
+
+            if (isOwnerPanel && now - lastAlertTime > ALERT_COOLDOWN_MS) {
+                const telegramMsg = `⚠️ *HELIOSTRACK VOLTAGE SPIKE*\n\n*Account:* ${operatorLabel}\n*Panel String:* ${panel_name} (ID: #${panel_id})\n*Cell Type:* ${panel_type}\n*Voltage:* ${voltage}V (Spike detected!)\n*Power:* ${power_watts}W | *Current:* ${current_amps}A\n*Time:* ${new Date().toLocaleString()}`;
                 await sendTelegramAlert(telegramMsg);
                 lastAlertTimes[panel_id] = now;
-                console.log(`📨 Telegram spike alert sent for panel ${panel_id}. Cooldown 5min started.`);
-            } else {
-                const remaining = Math.ceil((ALERT_COOLDOWN_MS - (now - lastAlertTime)) / 1000);
-                console.log(`🔇 Suppressed spike alert for panel ${panel_id} (cooldown ${remaining}s left).`);
+                console.log(`📨 Telegram spike alert sent for your personal panel ${panel_id}. Cooldown 5min started.`);
             }
         }
 
@@ -354,13 +614,19 @@ app.post('/api/logs', async (req, res) => {
 
         const liveLogObject = {
             log_id: result.insertId,
+            panel_id: panel.panel_id,
+            panel_name: panel_name,
             panel_type: panel_type,
             voltage: voltage,
             current_amps: current_amps,
             power_watts: power_watts,
             recorded_at: new Date()
         };
-        io.emit('live_log_update', liveLogObject);
+
+        // Targeted emission: Only to the owner of this panel
+        io.to(`user_${panel.user_id}`).emit('live_log_update', liveLogObject);
+        // Also broadcast to admin room
+        io.to('admin_room').emit('live_log_update', liveLogObject);
 
         res.status(201).json({ success: true, alert: alertTriggered ? alertMessage : null });
     } catch (error) {
@@ -370,10 +636,11 @@ app.post('/api/logs', async (req, res) => {
 });
 
 // ---------------------------------------------------------
-// HISTORY API ENDPOINT & EXPORT API (🛠️ FIXED: Added verifyToken)
+// 8. HISTORY API ENDPOINT (USER-SCOPED)
 // ---------------------------------------------------------
 app.get('/api/logs/history', verifyToken, async (req, res) => {
     try {
+        const userId = req.user.userId;
         const startDate = req.query.start;
         const endDate = req.query.end;
 
@@ -383,15 +650,15 @@ app.get('/api/logs/history', verifyToken, async (req, res) => {
 
         const sql = `
             SELECT 
-                MAX(g.log_id) AS log_id, ROUND(AVG(g.voltage), 2) AS voltage, ROUND(AVG(g.current_amps), 2) AS current_amps, ROUND(AVG(g.power_watts), 2) AS power_watts, DATE_FORMAT(g.recorded_at, '%Y-%m-%d %H:00:00') AS recorded_at, p.panel_type
+                MAX(g.log_id) AS log_id, ROUND(AVG(g.voltage), 2) AS voltage, ROUND(AVG(g.current_amps), 2) AS current_amps, ROUND(AVG(g.power_watts), 2) AS power_watts, DATE_FORMAT(g.recorded_at, '%Y-%m-%d %H:00:00') AS recorded_at, p.panel_type, p.panel_name, p.panel_id
             FROM generation_logs g
             JOIN solar_panels p ON g.panel_id = p.panel_id
-            WHERE g.recorded_at BETWEEN ? AND ? 
-            GROUP BY DATE_FORMAT(g.recorded_at, '%Y-%m-%d %H:00:00'), p.panel_type
+            WHERE p.user_id = ? AND g.recorded_at BETWEEN ? AND ? 
+            GROUP BY DATE_FORMAT(g.recorded_at, '%Y-%m-%d %H:00:00'), p.panel_id, p.panel_type, p.panel_name
             ORDER BY recorded_at ASC
         `;
-        const formattedEndDate = `${endDate} 23:59:59`;
-        const [rows] = await db.execute(sql, [startDate, formattedEndDate]);
+        const formattedEndDate = endDate.includes(' ') ? endDate : `${endDate} 23:59:59`;
+        const [rows] = await db.execute(sql, [userId, startDate, formattedEndDate]);
         res.status(200).json({ success: true, count: rows.length, data: rows });
     } catch (error) {
         console.error("Database error in history route:", error);
@@ -400,12 +667,20 @@ app.get('/api/logs/history', verifyToken, async (req, res) => {
 });
 
 // ---------------------------------------------------------
-// PHASE 5: DYNAMIC DEVICE MANAGEMENT (CRUD) (🛠️ FIXED: Added verifyToken)
+// 9. DYNAMIC DEVICE MANAGEMENT (USER-SCOPED CRUD)
 // ---------------------------------------------------------
+const ALLOWED_PANEL_TYPES = [
+    'Monocrystalline 400W',
+    'Polycrystalline 350W',
+    'Thin-Film 300W',
+    'Bifacial 450W'
+];
+
 app.get('/api/panels', verifyToken, async (req, res) => {
     try {
-        const sql = 'SELECT panel_id, panel_type FROM solar_panels';
-        const [panels] = await db.execute(sql);
+        const userId = req.user.userId;
+        const sql = 'SELECT panel_id, panel_name, panel_type, api_secret, added_at FROM solar_panels WHERE user_id = ? ORDER BY panel_id ASC';
+        const [panels] = await db.execute(sql, [userId]);
         res.status(200).json({ success: true, data: panels });
     } catch (error) {
         console.error("Failed to fetch panels:", error);
@@ -413,39 +688,36 @@ app.get('/api/panels', verifyToken, async (req, res) => {
     }
 });
 
-const ALLOWED_PANEL_TYPES = [
-    'Monocrystalline 400W',
-    'Polycrystalline 350W',
-    'Thin-Film 300W'
-];
-
 app.post('/api/panels', verifyToken, async (req, res) => {
     try {
-        const { panel_type } = req.body;
-        
+        const userId = req.user.userId;
+        const { panel_type, panel_name } = req.body;
+
         if (!panel_type) {
             return res.status(400).json({ success: false, message: "Panel type is required" });
         }
 
         if (!ALLOWED_PANEL_TYPES.includes(panel_type)) {
-            return res.status(400).json({ 
-                success: false, 
-                message: `Invalid panel type. Allowed types: ${ALLOWED_PANEL_TYPES.join(', ')}` 
+            return res.status(400).json({
+                success: false,
+                message: `Invalid panel type. Allowed types: ${ALLOWED_PANEL_TYPES.join(', ')}`
             });
         }
 
-        const newApiSecret = 'helios_key_' + Math.random().toString(36).substr(2, 10);
-        
-        const sql = 'INSERT INTO solar_panels (panel_type, api_secret) VALUES (?, ?)';
-        const [result] = await db.execute(sql, [panel_type, newApiSecret]);
+        const name = (panel_name && panel_name.trim()) || `Solar Array ${panel_type.split(' ')[0]}`;
+        const newApiSecret = 'helios_key_' + Math.random().toString(36).substring(2, 12);
 
-        // Notify simulator that a new panel was added
+        const sql = 'INSERT INTO solar_panels (user_id, panel_name, panel_type, api_secret) VALUES (?, ?, ?, ?)';
+        const [result] = await db.execute(sql, [userId, name, panel_type, newApiSecret]);
+
         await sendPanelsToSimulator();
 
-        res.status(201).json({ 
-            success: true, 
+        res.status(201).json({
+            success: true,
             message: "New panel registered successfully",
             panel_id: result.insertId,
+            panel_name: name,
+            panel_type: panel_type,
             api_secret: newApiSecret
         });
     } catch (error) {
@@ -454,26 +726,55 @@ app.post('/api/panels', verifyToken, async (req, res) => {
     }
 });
 
+app.delete('/api/panels/:panel_id', verifyToken, async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const panelId = req.params.panel_id;
+
+        const [existing] = await db.execute(
+            'SELECT panel_id FROM solar_panels WHERE panel_id = ? AND user_id = ?',
+            [panelId, userId]
+        );
+
+        if (existing.length === 0) {
+            return res.status(404).json({ success: false, message: "Panel not found or not owned by you." });
+        }
+
+        await db.execute('DELETE FROM solar_panels WHERE panel_id = ? AND user_id = ?', [panelId, userId]);
+        await sendPanelsToSimulator();
+
+        res.status(200).json({ success: true, message: "Panel removed successfully." });
+    } catch (error) {
+        console.error("Delete panel error:", error);
+        res.status(500).json({ success: false, message: "Server Error" });
+    }
+});
+
+// ---------------------------------------------------------
+// 10. CSV EXPORT (USER-SCOPED WITH CSV INJECTION PROTECTION)
+// ---------------------------------------------------------
 app.get('/api/logs/export', verifyToken, async (req, res) => {
     try {
+        const userId = req.user.userId;
         const sql = `
             SELECT 
-                g.log_id, p.panel_type, g.voltage, g.current_amps, g.power_watts, g.recorded_at
+                g.log_id, p.panel_name, p.panel_type, g.voltage, g.current_amps, g.power_watts, g.recorded_at
             FROM generation_logs g
             JOIN solar_panels p ON g.panel_id = p.panel_id
+            WHERE p.user_id = ?
             ORDER BY g.recorded_at DESC
         `;
-        const [rows] = await db.execute(sql);
+        const [rows] = await db.execute(sql, [userId]);
 
-        let csvContent = "Log ID,Panel Type,Voltage (V),Current (A),Power (W),Recorded Time\n";
+        let csvContent = "Log ID,Panel Name,Panel Type,Voltage (V),Current (A),Power (W),Recorded Time\n";
         rows.forEach(row => {
-            // 🛠️ FIXED: Prevent CSV Injection by properly escaping double quotes in panel_type
-            let safePanelType = String(row.panel_type).replace(/"/g, '""');
-            csvContent += `${row.log_id},"${safePanelType}",${row.voltage},${row.current_amps},${row.power_watts},"${row.recorded_at}"\n`;
+            let safeName = String(row.panel_name || '').replace(/"/g, '""');
+            let safeType = String(row.panel_type || '').replace(/"/g, '""');
+            csvContent += `${row.log_id},"${safeName}","${safeType}",${row.voltage},${row.current_amps},${row.power_watts},"${row.recorded_at}"\n`;
         });
 
         res.setHeader('Content-Type', 'text/csv');
-        res.setHeader('Content-Disposition', 'attachment; filename="heliostrack_logs_report.csv"');
+        res.setHeader('Content-Disposition', 'attachment; filename="heliostrack_telemetry_export.csv"');
         res.status(200).send(csvContent);
     } catch (error) {
         console.error("Export Error:", error);
@@ -489,10 +790,10 @@ let simulatorProcess = null;
 async function sendPanelsToSimulator() {
     if (!simulatorProcess) return;
     try {
-        const sql = 'SELECT panel_id, panel_type, api_secret FROM solar_panels';
+        const sql = 'SELECT panel_id, panel_name, panel_type, api_secret, user_id FROM solar_panels';
         const [panels] = await db.execute(sql);
         simulatorProcess.send({ type: 'panels', data: panels });
-        console.log(`Sent ${panels.length} panel(s) to simulator via IPC.`);
+        console.log(`Sent ${panels.length} panel(s) across fleet to simulator via IPC.`);
     } catch (error) {
         console.error("Failed to send panel list to simulator:", error);
     }
@@ -516,7 +817,6 @@ function startServer() {
 
         console.log("IoT Simulator auto-started in the background.");
 
-        // When simulator requests panels (on startup), send them immediately
         simulatorProcess.on('message', (message) => {
             if (message.type === 'request_panels') {
                 sendPanelsToSimulator();
@@ -528,9 +828,13 @@ function startServer() {
             simulatorProcess = null;
         });
 
-        // Send initial panel list after a short delay to ensure simulator is listening
         setTimeout(() => sendPanelsToSimulator(), 1000);
     });
 }
 
-startServer();
+// Export app and server for testing or serverless setups
+module.exports = { app, server, startServer };
+
+if (require.main === module) {
+    startServer();
+}

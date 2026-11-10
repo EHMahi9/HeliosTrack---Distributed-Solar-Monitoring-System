@@ -1,5 +1,7 @@
 node_modules/
 backend-api/.env
 dist/
+.dist/
+.vscode/
 backend-api/node_modules/
 backend-api/dist/

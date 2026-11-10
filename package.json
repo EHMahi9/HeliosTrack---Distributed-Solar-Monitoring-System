@@ -1,9 +1,13 @@
 {
   "name": "solar-monitor",
-  "version": "1.0.0",
-  "description": "HeliosTrack Solar Dashboard",
+  "version": "2.0.0",
+  "description": "HeliosTrack Distributed Solar Fleet & Virtual Grid Simulator",
   "main": "main.js",
   "scripts": {
+    "dev:backend": "cd backend-api && npm start",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build:frontend": "cd frontend && npm run build",
+    "migrate": "cd backend-api && node migrate.js",
     "start": "electron .",
     "build": "electron-builder --win"
   },
@@ -16,6 +20,7 @@
     "files": [
       "main.js",
       "backend-api/**/*",
+      "frontend/.next/**/*",
       "web-client/**/*",
       "node_modules/**/*"
     ],
