@@ -5,6 +5,15 @@ import { AuthProvider } from '@/context/AuthContext';
 export const metadata: Metadata = {
   title: 'HeliosTrack | Enterprise Solar Fleet & Virtual Grid Simulator',
   description: 'Distributed IoT solar fleet monitoring, virtual storage mechanics, and real-time smart grid infeed analytics.',
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: 'any' },
+    ],
+    apple: [
+      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+  },
 };
 
 export default function RootLayout({
