@@ -226,6 +226,139 @@ const loginRateLimiter = (req, res, next) => {
 };
 
 // ---------------------------------------------------------
+// 0. ROOT & HEALTH STATUS PORTAL (CleanTech API Gateway)
+// ---------------------------------------------------------
+app.get(['/', '/health', '/api'], (req, res) => {
+    const isJson = req.xhr || (req.headers.accept && req.headers.accept.includes('application/json')) || req.query.format === 'json';
+
+    const statusData = {
+        service: "HeliosTrack Distributed Solar Fleet Telemetry Engine",
+        version: "2.4.0",
+        status: "operational",
+        environment: process.env.NODE_ENV || "production",
+        database: "TiDB Cloud Serverless (MySQL 8.0 protocol)",
+        web_app: "https://helios-track-distributed-solar-moni.vercel.app",
+        timestamp: new Date().toISOString(),
+        endpoints: {
+            demo_auth: "POST /api/auth/demo",
+            register: "POST /api/auth/register",
+            login: "POST /api/auth/login",
+            panels: "GET /api/panels",
+            latest_telemetry: "GET /api/logs/latest",
+            telemetry_ingest: "POST /api/logs",
+            websocket: "WSS /socket.io"
+        }
+    };
+
+    if (isJson) {
+        return res.status(200).json(statusData);
+    }
+
+    res.status(200).send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HeliosTrack API Engine | Status: Operational</title>
+    <link rel="icon" href="https://helios-track-distributed-solar-moni.vercel.app/icon.svg" type="image/svg+xml">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: #070B14;
+            color: #E2E8F0;
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .card {
+            background: rgba(15, 23, 42, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(16px);
+            border-radius: 20px;
+            max-width: 640px;
+            width: 100%;
+            padding: 36px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 30px rgba(245, 158, 11, 0.08);
+        }
+        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+        .brand { display: flex; align-items: center; gap: 12px; }
+        .logo-icon {
+            width: 44px; height: 44px; border-radius: 12px;
+            background: linear-gradient(135deg, #F59E0B, #D97706);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px; box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+        }
+        .brand-title { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; color: #FFF; font-family: 'JetBrains Mono', monospace; }
+        .brand-title span { color: #F59E0B; }
+        .badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #34D399; font-size: 11px; font-weight: 700;
+            padding: 5px 12px; border-radius: 9999px; font-family: 'JetBrains Mono', monospace;
+        }
+        .pulse { width: 8px; height: 8px; border-radius: 50%; background: #10B981; animation: ping 1.5s infinite; }
+        @keyframes ping { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.4); } }
+        p.desc { font-size: 14px; line-height: 1.6; color: #94A3B8; margin-bottom: 24px; }
+        .grid-info {
+            background: #0B1120;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 28px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+        }
+        .grid-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
+        .grid-row:last-child { border-bottom: none; }
+        .label { color: #64748B; }
+        .val { color: #F1F5F9; font-weight: 600; }
+        .val.ok { color: #34D399; }
+        .cta-btn {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            width: 100%; padding: 14px 20px; border-radius: 12px;
+            background: linear-gradient(135deg, #F59E0B, #D97706);
+            color: #070B14; font-weight: 800; font-size: 14px; text-decoration: none;
+            transition: all 0.2s ease; box-shadow: 0 10px 25px -5px rgba(245, 158, 11, 0.35);
+        }
+        .cta-btn:hover { background: linear-gradient(135deg, #FBBF24, #F59E0B); transform: translateY(-1px); }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="header">
+            <div class="brand">
+                <div class="logo-icon">☀️</div>
+                <div>
+                    <div class="brand-title">HELIOS<span>TRACK</span></div>
+                    <div style="font-size: 10px; color: #64748B; font-family: monospace;">TELEMETRY ENGINE API</div>
+                </div>
+            </div>
+            <div class="badge"><div class="pulse"></div>SYSTEM ONLINE</div>
+        </div>
+        <p class="desc">
+            This is the distributed IoT solar telemetry infeed and WebSocket gateway for HeliosTrack.
+            To access the interactive solar fleet monitoring dashboard, power flow synoptics, and virtual storage controls, launch the web application.
+        </p>
+        <div class="grid-info">
+            <div class="grid-row"><span class="label">API Gateway</span><span class="val ok">Active (v2.4.0)</span></div>
+            <div class="grid-row"><span class="label">Database</span><span class="val">TiDB Cloud Serverless</span></div>
+            <div class="grid-row"><span class="label">Protocol</span><span class="val">REST API + Socket.io WSS</span></div>
+            <div class="grid-row"><span class="label">Web App</span><span class="val"><a href="https://helios-track-distributed-solar-moni.vercel.app" style="color: #F59E0B; text-decoration: none;">helios-track...vercel.app</a></span></div>
+        </div>
+        <a href="https://helios-track-distributed-solar-moni.vercel.app" class="cta-btn">
+            Launch HeliosTrack Web Application &rarr;
+        </a>
+    </div>
+</body>
+</html>`);
+});
+
+// ---------------------------------------------------------
 // 1. AUTH: SECURE LOGIN API (Supports Admin & Multi-User)
 // ---------------------------------------------------------
 app.post(['/api/login', '/api/auth/login'], loginRateLimiter, async (req, res) => {
